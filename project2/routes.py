@@ -5,7 +5,7 @@ from project2 import app, db
 from project2.api import parse_gpx_file, distance_travelled, speed_violation, stop_violation, check_liveness, generate_grid_fence, generate_path, route_check, allowed_file, list_to_string, string_to_list, create_geojson_feature, generate_corner_pts, create_stops_gpx, parse_gpx_waypoints
 from project2.models import GPXVehicle, GPXRoute, GPXStop
 
-@app.route('/vehicle/<int:gpx_vehicle_id>', methods=['GET'])
+@app.route('/api/vehicle/<int:gpx_vehicle_id>', methods=['GET'])
 def get_vehicle(gpx_vehicle_id):
     gpx_vehicle = GPXVehicle.query.get(gpx_vehicle_id)
 
@@ -25,7 +25,7 @@ def get_vehicle(gpx_vehicle_id):
     
     return jsonify({'error': 'record does not exist'}), 400
 
-@app.route('/route/<int:gpx_route_id>', methods=['GET'])
+@app.route('/api/route/<int:gpx_route_id>', methods=['GET'])
 def get_route(gpx_route_id):
     gpx_route = GPXRoute.query.get(gpx_route_id)
 
@@ -46,7 +46,7 @@ def get_route(gpx_route_id):
     
     return jsonify({'error': 'record does not exist'}), 400
 
-@app.route('/stop/<int:gpx_stop_id>', methods=['GET'])
+@app.route('/api/stop/<int:gpx_stop_id>', methods=['GET'])
 def get_stop(gpx_stop_id):
     gpx_stop = GPXStop.query.get(gpx_stop_id)
 
@@ -68,7 +68,7 @@ def get_stop(gpx_stop_id):
 
     return jsonify({'error': 'record does not exist'}), 400
 
-@app.route('/vehicle', methods=['GET'])
+@app.route('/api/vehicle', methods=['GET'])
 def get_all_vehicles():
     all_gpx_vehicles = GPXVehicle.query.all()
 
@@ -83,7 +83,7 @@ def get_all_vehicles():
 
     return jsonify(data)
 
-@app.route('/route', methods=['GET'])
+@app.route('/api/route', methods=['GET'])
 def get_all_routes():
     all_gpx_routes = GPXRoute.query.all()
 
@@ -99,7 +99,7 @@ def get_all_routes():
 
     return jsonify(data)
 
-@app.route('/stop', methods=['GET'])
+@app.route('/api/stop', methods=['GET'])
 def get_all_stops():
     all_gpx_stops = GPXStop.query.all()
 
@@ -116,7 +116,7 @@ def get_all_stops():
 
     return jsonify(data)
 
-@app.route('/vehicle', methods=['POST'])
+@app.route('/api/vehicle', methods=['POST'])
 def upload_vehicle():
     gpx_file = request.files['gpx_file']
     name = request.form['name']
@@ -142,7 +142,7 @@ def upload_vehicle():
 
     return jsonify({'error': 'file error'}), 400
 
-@app.route('/route', methods=['POST'])
+@app.route('/api/route', methods=['POST'])
 def upload_route():
     gpx_file = request.files['gpx_file']
     name = request.form['name']
@@ -187,7 +187,7 @@ def upload_route():
 
     return jsonify({'error': 'file error'}), 400
 
-@app.route('/stop', methods=['POST'])
+@app.route('/api/stop', methods=['POST'])
 def upload_stop():
     min_time = float(request.get_json(force=True)['min_time'])
     max_time = float(request.get_json(force=True)['max_time'])
@@ -213,7 +213,7 @@ def upload_stop():
 
     return jsonify(data)
 
-@app.route('/vehicle/<int:gpx_vehicle_id>', methods=['PUT'])
+@app.route('/api/vehicle/<int:gpx_vehicle_id>', methods=['PUT'])
 def update_vehicle(gpx_vehicle_id):
     new_name = request.form['name']
 
@@ -234,7 +234,7 @@ def update_vehicle(gpx_vehicle_id):
 
     return jsonify({'error': 'file does not exist'}), 400
 
-@app.route('/route/<int:gpx_route_id>', methods=['PUT'])
+@app.route('/api/route/<int:gpx_route_id>', methods=['PUT'])
 def update_route(gpx_route_id):
     new_name = request.form['name']
     new_cell_size = float(request.form['cell_size'])
@@ -284,7 +284,7 @@ def update_route(gpx_route_id):
 
     return jsonify({'error': 'file does not exist'}), 400
 
-@app.route('/stop/<int:gpx_stop_id>', methods=['PUT'])
+@app.route('/api/stop/<int:gpx_stop_id>', methods=['PUT'])
 def update_stop(gpx_stop_id):
     new_name = request.form['name']
     new_min_time = float(request.form['min_time'])
@@ -311,7 +311,7 @@ def update_stop(gpx_stop_id):
 
     return jsonify({'error': 'file does not exist'}), 400
 
-@app.route('/vehicle/<int:gpx_vehicle_id>', methods=['DELETE'])
+@app.route('/api/vehicle/<int:gpx_vehicle_id>', methods=['DELETE'])
 def delete_vehicle(gpx_vehicle_id):
     gpx_vehicle = GPXVehicle.query.get(gpx_vehicle_id)
     
@@ -326,7 +326,7 @@ def delete_vehicle(gpx_vehicle_id):
 
     return jsonify({'error': 'file does not exist'}), 400
 
-@app.route('/route/<int:gpx_route_id>', methods=['DELETE'])
+@app.route('/api/route/<int:gpx_route_id>', methods=['DELETE'])
 def delete_route(gpx_route_id):
     gpx_route = GPXRoute.query.get(gpx_route_id)
     
@@ -341,7 +341,7 @@ def delete_route(gpx_route_id):
 
     return jsonify({'error': 'file does not exist'}), 400
 
-@app.route('/stop/<int:gpx_stop_id>', methods=['DELETE'])
+@app.route('/api/stop/<int:gpx_stop_id>', methods=['DELETE'])
 def delete_stop(gpx_stop_id):
     gpx_stop = GPXStop.query.get(gpx_stop_id)
 
@@ -356,7 +356,7 @@ def delete_stop(gpx_stop_id):
 
     return jsonify({'error': 'file does not exist'}), 400
 
-@app.route('/distance/<int:gpx_vehicle_id>', methods=['GET'])
+@app.route('/api/distance/<int:gpx_vehicle_id>', methods=['GET'])
 def distance(gpx_vehicle_id):
     gpx_vehicle = GPXVehicle.query.get(gpx_vehicle_id)
 
@@ -367,7 +367,7 @@ def distance(gpx_vehicle_id):
 
     return jsonify({'distance': distance})
 
-@app.route('/speeding/<int:gpx_vehicle_id>', methods=['POST'])
+@app.route('/api/speeding/<int:gpx_vehicle_id>', methods=['POST'])
 def speeding(gpx_vehicle_id):
     speed_type = request.form['speed_type']
     speed_limit = float(request.form['speed_limit'])
@@ -382,7 +382,7 @@ def speeding(gpx_vehicle_id):
 
     return jsonify(violations)
 
-@app.route('/stop/<int:gpx_vehicle_id>/<int:gpx_stop_id>', methods=['GET'])
+@app.route('/api/stop/<int:gpx_vehicle_id>/<int:gpx_stop_id>', methods=['GET'])
 def stop(gpx_vehicle_id, gpx_stop_id):
     gpx_vehicle = GPXVehicle.query.get(gpx_vehicle_id)
     gpx_stop = GPXStop.query.get(gpx_stop_id)
@@ -404,7 +404,7 @@ def stop(gpx_vehicle_id, gpx_stop_id):
 
     return jsonify(violations)
 
-@app.route('/liveness/<int:gpx_vehicle_id>', methods=['POST'])
+@app.route('/api/liveness/<int:gpx_vehicle_id>', methods=['POST'])
 def liveness(gpx_vehicle_id):
     time_limit = int(request.form['time_limit'])
 
@@ -417,7 +417,7 @@ def liveness(gpx_vehicle_id):
 
     return jsonify(results)
 
-@app.route('/loop/<int:gpx_vehicle_id>/<int:gpx_route_id>', methods=['GET'])
+@app.route('/api/loop/<int:gpx_vehicle_id>/<int:gpx_route_id>', methods=['GET'])
 def loop(gpx_vehicle_id, gpx_route_id):
     gpx_vehicle = GPXVehicle.query.get(gpx_vehicle_id)
     gpx_route = GPXRoute.query.get(gpx_route_id)
