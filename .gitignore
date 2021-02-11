@@ -134,3 +134,4 @@ code/.DS_Store
 project2/config.py
 project2/*.db
 *.gpx
+static

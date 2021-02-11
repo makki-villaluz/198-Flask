@@ -1,5 +1,5 @@
 import os 
-from flask import request, jsonify
+from flask import request, jsonify, send_file
 from flask_cors import CORS
 from project2 import app, db
 from project2.api import parse_gpx_file, distance_travelled, speed_violation, stop_violation, check_liveness, generate_grid_fence, generate_path, route_check, allowed_file, list_to_string, string_to_list, create_geojson_feature, generate_corner_pts, create_stops_gpx, parse_gpx_waypoints
@@ -444,3 +444,12 @@ def loop(gpx_vehicle_id, gpx_route_id):
     loops = route_check(route_path, vehicle_path)
 
     return jsonify({'loops': loops})
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
+    file_path = os.path.join(app.static_folder, path)
+    if os.path.isfile(file_path):
+        return send_file(file_path)
+    index_path = os.path.join(app.static_folder, 'index.html')
+    return send_file(index_path)
