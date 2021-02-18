@@ -174,7 +174,7 @@ def speed_violation(gps_data, type, speed_limit, time):
 
     return list_violations
 
-def stop_violation(gps_data, min_limit, max_time, point1, point2):
+def stop_violation(gps_data, min_time, max_time, point1, point2):
     fence = Polygon([point1, (point1[0], point2[1]), point2, (point2[0], point1[1])])
     index_start = -1
     results = []
@@ -191,23 +191,24 @@ def stop_violation(gps_data, min_limit, max_time, point1, point2):
                 timer_end = gps_data[i-1].get('time').timestamp()
                 fence_time = timer_end - timer_start
 
-                center_lat = (point1[0] + point2[0]) / 2
-                center_long = (point1[1] + point2[1]) / 2
+                if fence_time < min_time or fence_time > max_time:
+                    center_lat = (point1[0] + point2[0]) / 2
+                    center_long = (point1[1] + point2[1]) / 2
 
-                violation = {
-                    'duration': fence_time,
-                    'time1': gps_data[index_start].get('time'),
-                    'time2': gps_data[i-1].get('time'),
-                    'center_lat': center_lat,
-                    'center_long': center_long
-                }
+                    violation = {
+                        'duration': fence_time,
+                        'time1': gps_data[index_start].get('time'),
+                        'time2': gps_data[i-1].get('time'),
+                        'center_lat': center_lat,
+                        'center_long': center_long
+                    }
 
-                if fence_time < min_limit:
-                    violation['violation'] = 'below limit'
-                elif fence_time > max_time:
-                    violation['violation'] = 'above limit'
+                    if fence_time < min_time:
+                        violation['violation'] = 'below limit'
+                    elif fence_time > max_time:
+                        violation['violation'] = 'above limit'
 
-                results.append(violation)
+                    results.append(violation)
                 
                 index_start = -1
 
