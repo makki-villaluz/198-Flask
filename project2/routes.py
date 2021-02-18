@@ -398,7 +398,7 @@ def stop(gpx_vehicle_id, gpx_stop_id):
         if i % 2 == 0:
             point1 = (stops[i]['latitude'], stops[i]['longitude'])
             point2 = (stops[i+1]['latitude'], stops[i+1]['longitude'])
-            violations += stop_violation(gps_data, 100, 200, point1, point2)
+            violations += stop_violation(gps_data, gpx_stop.min_time, gpx_stop.max_time, point1, point2)
         else:
             continue
 
