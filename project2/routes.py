@@ -159,7 +159,7 @@ def upload_route():
             with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], filename)) as gpx_file:
                 gps_data = parse_gpx_file(gpx_file)
 
-            point1, point2 = generate_corner_pts(gps_data)
+            point1, point2 = generate_corner_pts(gps_data, cell_size)
             # grid_fence = generate_grid_fence(point1, point2, cell_size)
             # route = list_to_string(generate_path(gps_data, grid_fence))
 
@@ -268,8 +268,17 @@ def update_route(gpx_route_id):
     #     return jsonify(data)
 
     if gpx_route:
+        with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], gpx_route.filename)) as gpx_file:
+            gps_data = parse_gpx_file(gpx_file)
+
+        point1, point2 = generate_corner_pts(gps_data, new_cell_size)
+
         gpx_route.name = new_name
         gpx_route.cell_size = new_cell_size
+        gpx_route.lat1 = point1.lat 
+        gpx_route.long1 = point1.lon
+        gpx_route.lat2 = point2.lat
+        gpx_route.long2 = point2.lon
 
         db.session.commit()
 
@@ -277,7 +286,11 @@ def update_route(gpx_route_id):
             'id': gpx_route.id,
             'filename': gpx_route.filename,
             'name': new_name,
-            'cell_size': gpx_route.cell_size
+            'cell_size': gpx_route.cell_size,
+            'lat1': point1.lat,
+            'long1': point1.lon,
+            'lat2': point2.lat,
+            'long2': point2.lon
         }
 
         return jsonify(data)
