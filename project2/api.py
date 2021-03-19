@@ -39,7 +39,7 @@ def create_geojson_feature(gps_data):
         
     return geojson
 
-def generate_corner_pts(gps_data):
+def generate_corner_pts(gps_data, buffer=0.1):
     greatest_lat = gps_data[0].get('latitude')
     least_lat = gps_data[0].get('latitude')
     greatest_long = gps_data[0].get('longitude')
@@ -59,11 +59,11 @@ def generate_corner_pts(gps_data):
         elif point_long < least_long:
             least_long = point_long
 
-    # 100 meters 
-    greatest_lat += 0.0009
-    least_long -= 0.0009
-    least_lat -= 0.0009
-    greatest_long += 0.0009
+    # 1km * buffer, buffer by default is 0.1 (100m), buffer is set to cell_size
+    greatest_lat += 0.009 * buffer
+    least_long -= 0.009 * buffer
+    least_lat -= 0.009 * buffer
+    greatest_long += 0.009 * buffer
 
     return Point(greatest_lat, least_long), Point(least_lat, greatest_long)
 
@@ -279,8 +279,8 @@ def generate_grid_fence(point1, point2, side_length):
     latitude = point1.lat
     longitude = point1.lon
 
-    while latitude > point2.lat:
-        while longitude < point2.lon:
+    while latitude > point2.lat - side_interval:
+        while longitude < point2.lon + side_interval:
             top_left_pt = Point(latitude, longitude)
             bottom_right_pt = Point(latitude - side_interval, longitude + side_interval)
 
