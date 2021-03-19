@@ -280,17 +280,21 @@ def generate_grid_fence(point1, point2, side_length):
     longitude = point1.lon
 
     while latitude > point2.lat - side_interval:
+        row = []
+
         while longitude < point2.lon + side_interval:
             top_left_pt = Point(latitude, longitude)
             bottom_right_pt = Point(latitude - side_interval, longitude + side_interval)
 
             geofence = Polygon(top_left_pt, bottom_right_pt)
-            grid_fence.append(geofence)
+            row.append(geofence)
 
             longitude += side_interval
 
         longitude = point1.lon
         latitude -= side_interval
+
+        grid_fence.append(row)
 
     return grid_fence
 
@@ -298,14 +302,29 @@ def generate_path(gps_data, grid_fence):
     path = []
     current_fence = -1
 
-    for point in gps_data:
-        pt = Point(point.get('latitude'), point.get('longitude'))
-        for i in range(len(grid_fence)):
-            if grid_fence[i].contains(pt):
-                if current_fence != i:
-                    current_fence = i 
-                    path.append(i)
-                    break
+    if isinstance(grid_fence[0], list):
+        for point in gps_data:
+            pt = Point(point.get('latitude'), point.get('longitude'))
+            for i in range(len(grid_fence)):
+                for j in range(len(grid_fence[0])):
+                    if grid_fence[i][j].contains(pt):
+                        fence_number = i * len(grid_fence[0]) + j
+                        if current_fence != fence_number:
+                            current_fence = fence_number
+                            path.append(fence_number)
+                            break
+                else:
+                    continue
+                break
+    else:
+        for point in gps_data:
+            pt = Point(point.get('latitude'), point.get('longitude'))
+            for i in range(len(grid_fence)):
+                if grid_fence[i].contains(pt):
+                    if current_fence != i:
+                        current_fence = i 
+                        path.append(i)
+                        break
 
     return path
 
