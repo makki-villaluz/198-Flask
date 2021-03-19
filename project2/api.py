@@ -1,7 +1,22 @@
 from haversine import haversine
 import gpxpy
 import gpxpy.gpx
-from shapely.geometry import Point, Polygon
+
+class Point():
+    def __init__(self, lat, lon):
+        self.lat = lat
+        self.lon = lon
+
+class Polygon():
+    def __init__(self, top_left_pt, bottom_right_pt):
+        self.top_left_pt = top_left_pt
+        self.bottom_right_pt = bottom_right_pt
+
+    def contains(self, point):
+        if self.top_left_pt.lat >= point.lat and self.top_left_pt.lon <= point.lon and self.bottom_right_pt.lat < point.lat and self.bottom_right_pt.lon > point.lon:
+            return True
+        else:
+            return False
 
 def list_to_string(list):
     return ','.join(str(element) for element in list)
@@ -50,7 +65,7 @@ def generate_corner_pts(gps_data):
     least_lat -= 0.0009
     greatest_long += 0.0009
 
-    return (greatest_lat, least_long), (least_lat, greatest_long)
+    return Point(greatest_lat, least_long), Point(least_lat, greatest_long)
 
 def create_stops_gpx(stops):
     gpx = gpxpy.gpx.GPX()
@@ -175,14 +190,14 @@ def speed_violation(gps_data, type, speed_limit, time):
     return list_violations
 
 def stop_violation(gps_data, min_time, max_time, point1, point2):
-    fence = Polygon([point1, (point1[0], point2[1]), point2, (point2[0], point1[1])])
+    fence = Polygon(point1, point2)
     index_start = -1
     results = []
 
     for i in range(len(gps_data)):
         pt = Point(gps_data[i].get('latitude'), gps_data[i].get('longitude'))
 
-        if fence.intersects(pt):
+        if fence.contains(pt):
             if index_start == -1:
                 index_start = i
         else:
@@ -192,8 +207,8 @@ def stop_violation(gps_data, min_time, max_time, point1, point2):
                 fence_time = timer_end - timer_start
 
                 if fence_time < min_time or fence_time > max_time:
-                    center_lat = (point1[0] + point2[0]) / 2
-                    center_long = (point1[1] + point2[1]) / 2
+                    center_lat = (point1.lat + point2.lat) / 2
+                    center_long = (point1.lon + point2.lon) / 2
 
                     violation = {
                         'duration': fence_time,
@@ -261,22 +276,20 @@ def generate_grid_fence(point1, point2, side_length):
 
     side_interval = side_length * 0.009
 
-    latitude = point1[0]
-    longitude = point1[1]
+    latitude = point1.lat
+    longitude = point1.lon
 
-    while latitude > point2[0]:
-        while longitude < point2[1]:
-            top_left_pt = (latitude, longitude)
-            top_right_pt = (latitude, longitude + side_interval)
-            bottom_left_pt = (latitude - side_interval, longitude)
-            bottom_right_pt = (latitude - side_interval, longitude + side_interval)
+    while latitude > point2.lat:
+        while longitude < point2.lon:
+            top_left_pt = Point(latitude, longitude)
+            bottom_right_pt = Point(latitude - side_interval, longitude + side_interval)
 
-            geofence = Polygon([top_left_pt, top_right_pt, bottom_right_pt, bottom_left_pt])
+            geofence = Polygon(top_left_pt, bottom_right_pt)
             grid_fence.append(geofence)
 
             longitude += side_interval
 
-        longitude = point1[1]
+        longitude = point1.lon
         latitude -= side_interval
 
     return grid_fence
@@ -288,7 +301,7 @@ def generate_path(gps_data, grid_fence):
     for point in gps_data:
         pt = Point(point.get('latitude'), point.get('longitude'))
         for i in range(len(grid_fence)):
-            if grid_fence[i].intersects(pt):
+            if grid_fence[i].contains(pt):
                 if current_fence != i:
                     current_fence = i 
                     path.append(i)

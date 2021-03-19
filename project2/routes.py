@@ -2,7 +2,7 @@ import os
 from flask import request, jsonify, send_file
 from flask_cors import CORS
 from project2 import app, db
-from project2.api import parse_gpx_file, distance_travelled, speed_violation, stop_violation, check_liveness, generate_grid_fence, generate_path, route_check, allowed_file, list_to_string, string_to_list, create_geojson_feature, generate_corner_pts, create_stops_gpx, parse_gpx_waypoints
+from project2.api import parse_gpx_file, distance_travelled, speed_violation, stop_violation, check_liveness, generate_grid_fence, generate_path, route_check, allowed_file, list_to_string, string_to_list, create_geojson_feature, generate_corner_pts, create_stops_gpx, parse_gpx_waypoints, Point
 from project2.models import GPXVehicle, GPXRoute, GPXStop
 
 @app.route('/api/vehicle/<int:gpx_vehicle_id>', methods=['GET'])
@@ -396,8 +396,8 @@ def stop(gpx_vehicle_id, gpx_stop_id):
     violations = []
     for i in range(len(stops)):
         if i % 2 == 0:
-            point1 = (stops[i]['latitude'], stops[i]['longitude'])
-            point2 = (stops[i+1]['latitude'], stops[i+1]['longitude'])
+            point1 = Point(stops[i]['latitude'], stops[i]['longitude'])
+            point2 = Point(stops[i+1]['latitude'], stops[i+1]['longitude'])
             violations += stop_violation(gps_data, gpx_stop.min_time, gpx_stop.max_time, point1, point2)
         else:
             continue
@@ -434,8 +434,8 @@ def loop(gpx_vehicle_id, gpx_route_id):
     lat2 = gpx_route.lat2
     long2 = gpx_route.long2
 
-    point1 = (lat1, long1)
-    point2 = (lat2, long2)
+    point1 = Point(lat1, long1)
+    point2 = Point(lat2, long2)
 
     grid_fence = generate_grid_fence(point1, point2, cell_size)
     vehicle_path = generate_path(gps_data_vehicle, grid_fence)
