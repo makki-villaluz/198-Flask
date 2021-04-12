@@ -18,6 +18,7 @@ def get_vehicle(gpx_vehicle_id):
             'id': gpx_vehicle.id,
             'filename': gpx_vehicle.filename,
             'name': gpx_vehicle.name,
+            'date_uploaded': gpx_vehicle.date_uploaded.strftime("%b %d, %Y"),
             'geojson': geojson
         }
 
@@ -38,6 +39,7 @@ def get_route(gpx_route_id):
             'id': gpx_route.id,
             'filename': gpx_route.filename,
             'name': gpx_route.name,
+            'date_uploaded': gpx_route.date_uploaded.strftime("%b %d, %Y"),
             'cell_size': gpx_route.cell_size,
             'geojson': geojson
         }
@@ -59,6 +61,7 @@ def get_stop(gpx_stop_id):
             'id': gpx_stop.id,
             'filename': gpx_stop.filename,
             'name': gpx_stop.name,
+            'date_uploaded': gpx_stop.date_uploaded.strftime("%b %d, %Y"),
             'min_time': gpx_stop.min_time,
             'max_time': gpx_stop.max_time,
             'geojson': geojson
@@ -78,7 +81,8 @@ def get_all_vehicles():
         data.append({
             'id': vehicle.id,
             'filename': vehicle.filename,
-            'name': vehicle.name
+            'name': vehicle.name,
+            'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y")
         })
 
     return jsonify(data)
@@ -94,6 +98,7 @@ def get_all_routes():
             'id': route.id,
             'filename': route.filename,
             'name': route.name,
+            'date_uploaded': route.date_uploaded.strftime("%b %d, %Y"),
             'cell_size': route.cell_size
         })
 
@@ -110,6 +115,7 @@ def get_all_stops():
             'id': stop.id,
             'filename': stop.filename,
             'name': stop.name,
+            'date_uploaded': stop.date_uploaded.strftime("%b %d, %Y"),
             'min_time': stop.min_time,
             'max_time': stop.max_time
         })
@@ -135,7 +141,8 @@ def upload_vehicle():
             data = {
                 'id': gpx_vehicle.id,
                 'filename': gpx_vehicle.filename,
-                'name': gpx_vehicle.name
+                'name': gpx_vehicle.name,
+                'date_uploaded': gpx_vehicle.date_uploaded.strftime("%b %d, %Y")
             }
 
             return jsonify(data)
@@ -180,6 +187,7 @@ def upload_route():
                 'id': gpx_route.id,
                 'filename': gpx_route.filename,
                 'name': gpx_route.name,
+                'date_uploaded': gpx_route.date_uploaded.strftime("%b %d, %Y"),
                 'cell_size': gpx_route.cell_size
             }
             
@@ -207,6 +215,7 @@ def upload_stop():
         'id': gpx_stop.id,
         'filename': gpx_stop.filename,
         'name': gpx_stop.name,
+        'date_uploaded': gpx_stop.date_uploaded.strftime("%b %d, %Y"),
         'min_time': gpx_stop.min_time,
         'max_time': gpx_stop.max_time
     }
