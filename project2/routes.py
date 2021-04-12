@@ -166,10 +166,10 @@ def upload_route():
             gpx_route = GPXRoute(
                 filename=filename,
                 name=name,
-                lat1=point1[0],
-                long1=point1[1],
-                lat2=point2[0],
-                long2=point2[1],
+                lat1=point1.lat,
+                long1=point1.lon,
+                lat2=point2.lat,
+                long2=point2.lon,
                 cell_size=cell_size
             )
 
