@@ -8,6 +8,8 @@ from project2.models import GPXVehicle, GPXRoute, GPXStop
 @app.route('/api/vehicle/<int:gpx_vehicle_id>', methods=['GET'])
 def get_vehicle(gpx_vehicle_id):
     gpx_vehicle = GPXVehicle.query.get(gpx_vehicle_id)
+    gpx_route = GPXRoute.query.get(gpx_vehicle.route_id)
+    gpx_stop = GPXStop.query.get(gpx_vehicle.stops_id)
 
     if gpx_vehicle:
         with open(os.path.join(app.config['GPX_VEHICLE_FOLDER'], gpx_vehicle.filename)) as gpx_file:
@@ -19,6 +21,10 @@ def get_vehicle(gpx_vehicle_id):
             'filename': gpx_vehicle.filename,
             'name': gpx_vehicle.name,
             'date_uploaded': gpx_vehicle.date_uploaded.strftime("%b %d, %Y"),
+            'route_id': gpx_route.id,
+            'route_name': gpx_route.name,
+            'stops_id': gpx_stop.id,
+            'stops_name': gpx_stop.name,
             'geojson': geojson
         }
 
@@ -78,10 +84,17 @@ def get_all_vehicles():
     data = []
 
     for vehicle in all_gpx_vehicles:
+        gpx_route = GPXRoute.query.get(vehicle.route_id)
+        gpx_stop = GPXStop.query.get(vehicle.stops_id)
+
         data.append({
             'id': vehicle.id,
             'filename': vehicle.filename,
             'name': vehicle.name,
+            'route_id': gpx_route.id,
+            'route_name': gpx_route.name,
+            'stops_id': gpx_stop.id,
+            'stops_name': gpx_stop.name,
             'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y")
         })
 
@@ -126,6 +139,8 @@ def get_all_stops():
 def upload_vehicle():
     gpx_file = request.files['gpx_file']
     name = request.form['name']
+    route_id = request.form['route_id']
+    stops_id = request.form['stops_id']
     filename = gpx_file.filename
 
     if gpx_file and allowed_file(filename):
@@ -134,7 +149,9 @@ def upload_vehicle():
         if not gpx_vehicle:
             gpx_file.save(os.path.join(app.config['GPX_VEHICLE_FOLDER'], filename))
 
-            gpx_vehicle = GPXVehicle(filename=filename, name=name)
+            gpx_vehicle = GPXVehicle(filename=filename, name=name, route_id=route_id, stops_id=stops_id)
+            gpx_route = GPXRoute.query.get(route_id)
+            gpx_stop = GPXStop.query.get(stops_id)
             db.session.add(gpx_vehicle)
             db.session.commit()
 
@@ -142,7 +159,11 @@ def upload_vehicle():
                 'id': gpx_vehicle.id,
                 'filename': gpx_vehicle.filename,
                 'name': gpx_vehicle.name,
-                'date_uploaded': gpx_vehicle.date_uploaded.strftime("%b %d, %Y")
+                'date_uploaded': gpx_vehicle.date_uploaded.strftime("%b %d, %Y"),
+                'route_id': gpx_vehicle.route_id,
+                'route_name': gpx_route.name,
+                'stops_id': gpx_vehicle.stops_id,
+                'stops_name': gpx_stop.name
             }
 
             return jsonify(data)
@@ -225,18 +246,28 @@ def upload_stop():
 @app.route('/api/vehicle/<int:gpx_vehicle_id>', methods=['PUT'])
 def update_vehicle(gpx_vehicle_id):
     new_name = request.form['name']
+    new_route_id = request.form['route_id']
+    new_stops_id = request.form['stops_id']
 
     gpx_vehicle = GPXVehicle.query.get(gpx_vehicle_id)
+    gpx_route = GPXRoute.query.get(new_route_id)
+    gpx_stop = GPXStop.query.get(new_stops_id)
 
     if gpx_vehicle:
         gpx_vehicle.name = new_name
+        gpx_vehicle.route_id = new_route_id
+        gpx_vehicle.stops_id = new_stops_id
 
         db.session.commit()
 
         data = {
             'id': gpx_vehicle.id,
             'filename': gpx_vehicle.filename,
-            'name': new_name
+            'name': new_name,
+            'route_id': new_route_id,
+            'route_name': gpx_route.name,
+            'stops_id': new_stops_id,
+            'stops_name': gpx_stop.name
         }
 
         return jsonify(data)
