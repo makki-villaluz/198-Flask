@@ -2,7 +2,7 @@ import os
 from flask import request, jsonify, send_file
 from flask_cors import CORS
 from project2 import app, db
-from project2.api import parse_gpx_file, distance_travelled, speed_violation, stop_violation, check_liveness, generate_grid_fence, generate_path, route_check, allowed_file, list_to_string, string_to_list, create_geojson_feature, generate_corner_pts, create_stops_gpx, parse_gpx_waypoints, Point
+from project2.api import parse_gpx_file, distance_travelled, speed_violation, stop_violation, check_liveness, generate_grid_fence, generate_path, route_check, allowed_file, list_to_string, string_to_list, create_geojson_feature, generate_corner_pts, create_stops_gpx, parse_gpx_waypoints, Point, loop_counting
 from project2.models import GPXVehicle, GPXRoute, GPXStop
 
 @app.route('/api/vehicle/<int:gpx_vehicle_id>', methods=['GET'])
