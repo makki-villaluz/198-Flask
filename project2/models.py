@@ -14,11 +14,6 @@ class GPXRoute(db.Model):
     filename = db.Column(db.String(60), unique=True, nullable=False)
     name = db.Column(db.String(60), unique=True, nullable=False)
     date_uploaded = db.Column(db.Date, default=datetime.date.today(), nullable=False)
-    # route = db.Column(db.String(500), nullable=False)
-    lat1 = db.Column(db.Float, nullable=False)
-    long1 = db.Column(db.Float, nullable=False)
-    lat2 = db.Column(db.Float, nullable=False)
-    long2 = db.Column(db.Float, nullable=False)
     cell_size = db.Column(db.Float, nullable=False)
 
 class GPXStop(db.Model):
