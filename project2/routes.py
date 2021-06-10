@@ -187,17 +187,9 @@ def upload_route():
             with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], filename)) as gpx_file:
                 gps_data = parse_gpx_file(gpx_file)
 
-            point1, point2 = generate_corner_pts(gps_data, cell_size)
-            # grid_fence = generate_grid_fence(point1, point2, cell_size)
-            # route = list_to_string(generate_path(gps_data, grid_fence))
-
             gpx_route = GPXRoute(
                 filename=filename,
                 name=name,
-                lat1=point1.lat,
-                long1=point1.lon,
-                lat2=point2.lat,
-                long2=point2.lon,
                 cell_size=cell_size
             )
 
@@ -280,45 +272,13 @@ def update_route(gpx_route_id):
     new_cell_size = float(request.form['cell_size'])
 
     gpx_route = GPXRoute.query.get(gpx_route_id)
-    # filename = gpx_route.filename
-
-    # if new_cell_size != gpx_route.cell_size:
-    #     point1 = (gpx_route.lat1, gpx_route.long1)
-    #     point2 = (gpx_route.lat2, gpx_route.long2)
-
-    #     with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], filename)) as gpx_file:
-    #         gps_data = parse_gpx_file(gpx_file)
-
-    #     grid_fence = generate_grid_fence(point1, point2, new_cell_size)
-    #     new_route = list_to_string(generate_path(gps_data, grid_fence))
-
-    #     gpx_route.name = new_name
-    #     gpx_route.cell_size = new_cell_size
-    #     gpx_route.route = new_route
-
-    #     db.session.commit()
-
-    #     data = {
-    #         'id': gpx_route.id,
-    #         'filename': gpx_route.filename,
-    #         'name': new_name,
-    #         'cell_size': new_cell_size
-    #     }
-
-    #     return jsonify(data)
 
     if gpx_route:
         with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], gpx_route.filename)) as gpx_file:
             gps_data = parse_gpx_file(gpx_file)
 
-        point1, point2 = generate_corner_pts(gps_data, new_cell_size)
-
         gpx_route.name = new_name
         gpx_route.cell_size = new_cell_size
-        gpx_route.lat1 = point1.lat 
-        gpx_route.long1 = point1.lon
-        gpx_route.lat2 = point2.lat
-        gpx_route.long2 = point2.lon
 
         db.session.commit()
 
@@ -326,11 +286,7 @@ def update_route(gpx_route_id):
             'id': gpx_route.id,
             'filename': gpx_route.filename,
             'name': new_name,
-            'cell_size': gpx_route.cell_size,
-            'lat1': point1.lat,
-            'long1': point1.lon,
-            'lat2': point2.lat,
-            'long2': point2.lon
+            'cell_size': gpx_route.cell_size
         }
 
         return jsonify(data)
