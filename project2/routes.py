@@ -482,19 +482,12 @@ def loop(gpx_vehicle_id, gpx_route_id):
         gps_data_route = parse_gpx_file(gpx_file)
 
     cell_size = gpx_route.cell_size
-    lat1 = gpx_route.lat1
-    long1 = gpx_route.long1
-    lat2 = gpx_route.lat2
-    long2 = gpx_route.long2
 
-    point1 = Point(lat1, long1)
-    point2 = Point(lat2, long2)
-
+    point1, point2 = generate_corner_pts(gps_data_vehicle, cell_size)
     grid_fence = generate_grid_fence(point1, point2, cell_size)
     vehicle_path = generate_path(gps_data_vehicle, grid_fence)
     route_path = generate_path(gps_data_route, grid_fence)
-    # route_path = string_to_list(gpx_route.route)
-    loops = route_check(route_path, vehicle_path)
+    loops = loop_counting(route_path, vehicle_path, grid_fence)
 
     return jsonify({'loops': loops})
 
