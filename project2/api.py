@@ -275,14 +275,15 @@ def generate_grid_fence(point1, point2, side_length):
     grid_fence = []
 
     side_interval = side_length * 0.009
+    print(side_length)
 
     latitude = point1.lat
     longitude = point1.lon
 
-    while latitude > point2.lat - side_interval:
+    while latitude > point2.lat:
         row = []
 
-        while longitude < point2.lon + side_interval:
+        while longitude < point2.lon:
             top_left_pt = Point(latitude, longitude)
             bottom_right_pt = Point(latitude - side_interval, longitude + side_interval)
 
@@ -344,3 +345,130 @@ def route_check(set_route, vehicle_route):
             break
 
     return loops
+
+def loop_counting(route, traj, grid_cells):
+    errors = 0
+    loops = 0
+    r = 0
+    i = 0
+    while i < len(traj):
+        if traj[i] == route[r]:
+            r += 1
+        else:
+            ind = find_current_index(traj[i], route)
+            # "Local" Errors
+            if ind != -1:
+                if ind > r:
+                    r = ind + 1
+                elif ind < r:
+                    if traj[ind] == route[0]:
+                        if traj[i - 1] == route[1]:
+                            r = ind + 1
+                        else: 
+                            r = len(route) 
+                    else:
+                        r = ind + 1
+            # "Foreign" Errors
+            elif ind == -1:
+                i, r, detour, missed_route = detour_info(i, r, route, traj)
+                errors += check_neighbors(detour, missed_route, grid_cells)
+        if r == len(route):
+            r = r % len(route)
+            if errors == 0:
+                loops += 1
+            else:
+                errors = 0
+        i += 1
+    return loops
+
+def detour_info(i, r, route, traj):
+    detour = []
+    missed_route = []
+    sub_traj = traj[i:]
+    _i = i
+    
+    # Find Detour List
+    for j in range(len(sub_traj)):
+        if find_current_index(sub_traj[j], route) == -1:
+            detour.append(sub_traj[j])
+            i += 1
+        else:
+            break
+
+    # Find Missing Route
+    if _i == 0:
+        if find_current_index(traj[i], route) == 0:
+            missed_route = [route[0]]
+        else:
+            end_index = find_current_index(traj[i], route) + 1
+            missed_route = route[0:end_index]
+        r = find_current_index(traj[i], route) + 1
+    elif _i != 0:
+        start_index = find_current_index(traj[_i-1], route)
+        if i == len(traj):
+            missed_route = route[start_index:len(route)]
+            r = len(route) # arbitrary, traj has already ended
+        else:
+            end_index = find_current_index(traj[i], route) + 1
+            if end_index < start_index:
+                missed_route = route[start_index:len(route)]
+                missed_route.append(end_index)
+            else:
+                missed_route = route[start_index:end_index]
+            r = find_current_index(traj[i], route) + 1
+    return i, r, detour, missed_route
+
+def check_neighbors(detour, missed_route, grid_cells):
+    match = False
+    err = 0
+
+    width = len(grid_cells[0])
+    length = len(grid_cells) * len(grid_cells[0])
+
+    for d in detour:
+        for r in missed_route:
+            if d in adjacent_cells(r, width, length):
+                match = True 
+                break
+            else:
+                match = False 
+        if match == False:
+            err = 1
+            break 
+    return err
+
+def adjacent_cells(d, w, l):
+    # Top Left
+    if d == 0:
+        return [d+1, d+w, d+w+1]
+    # Top Right
+    elif d == w-1:
+        return [d-1, d+w-1, d+w]
+    # Bottom Left
+    elif d == l-w:
+        return [d-w, d-w+1, d+1]
+    # Bottom Right
+    elif d == l-1:
+        return [d-w-1, d-w, d-1]
+    # North
+    elif d < w:
+        return [d-1, d+1, d+w-1, d+w, d+w+1]
+    # South
+    elif (d < l) and (d >= l-w):
+        return [d-w-1, d-w, d-w+1, d-1, d+1]
+    # West
+    elif d % w == 0:
+        return [d-w, d-w+1, d+1, d+w, d+w+1]
+    # East
+    elif d % w == w - 1:
+        return [d-w-1, d-w, d-1, d+w-1, d+w]
+    # Middle
+    else:
+        return [d-w-1, d-w, d-w+1, d-1, d+1, d+w-1, d+w, d+w+1]
+
+def find_current_index(cell, route_list):
+    # Find what index in the route_list the trajectory cell exists in
+    for i in range(len(route_list)):
+        if route_list[i] == cell:
+            return i
+    return -1
