@@ -275,7 +275,6 @@ def generate_grid_fence(point1, point2, side_length):
     grid_fence = []
 
     side_interval = side_length * 0.009
-    print(side_length)
 
     latitude = point1.lat
     longitude = point1.lon
