@@ -1,4 +1,5 @@
 import os 
+import json
 from flask import request, jsonify, send_file
 from flask_cors import CORS
 from project2 import app, db
@@ -21,12 +22,22 @@ def get_vehicle(gpx_vehicle_id):
             'filename': gpx_vehicle.filename,
             'name': gpx_vehicle.name,
             'date_uploaded': gpx_vehicle.date_uploaded.strftime("%b %d, %Y"),
-            'route_id': gpx_route.id,
-            'route_name': gpx_route.name,
-            'stops_id': gpx_stop.id,
-            'stops_name': gpx_stop.name,
             'geojson': geojson
         }
+
+        if gpx_route == None:
+            data['route_id'] = json.dumps(None)
+            data['route_name'] = 'None'
+        else:
+            data['route_id'] = gpx_route.id
+            data['route_name'] = gpx_route.name
+
+        if gpx_stop == None:
+            data['stops_id'] = json.dumps(None)
+            data['stops_name'] = 'None'
+        else:
+            data['stops_id'] = gpx_stop.id
+            data['stops_name'] = gpx_stop.name
 
         return jsonify(data)
     
@@ -84,19 +95,30 @@ def get_all_vehicles():
     data = []
 
     for vehicle in all_gpx_vehicles:
-        gpx_route = GPXRoute.query.get(vehicle.route_id)
-        gpx_stop = GPXStop.query.get(vehicle.stops_id)
-
-        data.append({
+        vehicle_data = {
             'id': vehicle.id,
             'filename': vehicle.filename,
             'name': vehicle.name,
-            'route_id': gpx_route.id,
-            'route_name': gpx_route.name,
-            'stops_id': gpx_stop.id,
-            'stops_name': gpx_stop.name,
             'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y")
-        })
+        }
+
+        gpx_route = GPXRoute.query.get(vehicle.route_id)
+        if gpx_route == None:
+            vehicle_data['route_id'] = json.dumps(None)
+            vehicle_data['route_name'] = 'None'
+        else:
+            vehicle_data['route_id'] = gpx_route.id
+            vehicle_data['route_name'] = gpx_route.name
+
+        gpx_stop = GPXStop.query.get(vehicle.stops_id)
+        if gpx_stop == None:
+            vehicle_data['stops_id'] = json.dumps(None)
+            vehicle_data['stops_name'] = 'None'
+        else:
+            vehicle_data['stops_id'] = gpx_stop.id
+            vehicle_data['stops_name'] = gpx_stop.name
+
+        data.append(vehicle_data)
 
     return jsonify(data)
 
