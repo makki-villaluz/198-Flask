@@ -139,7 +139,7 @@ def speed_violation(gps_data, type, speed_limit, time):
         speed_limit in km/hr
         time in minutes
     """
-    time_elapsed = -1
+    time_elapsed = 0
     first_point = True
     list_violations = []
     for i in range(len(gps_data) - 1):
@@ -159,18 +159,14 @@ def speed_violation(gps_data, type, speed_limit, time):
         elif type == "Location":
             speed = speed_between_points(lon1, lat1, time1, lon2, lat2, time2)
 
-        if(speed >= speed_limit):
-            speeding = True
-            time_elapsed += time1.timestamp() - time0.timestamp()
-
-            if (first_point == True):
+        if speed >= speed_limit: 
+            if first_point == True:
                 starting_point = gps_data[i]
                 first_point = False
-
+            else: 
+                time_elapsed += time1.timestamp() - time0.timestamp() 
         else:
-            speeding = False
-
-            if (sec_to_minute(time_elapsed) >= time): 
+            if sec_to_minute(time_elapsed) >= time:
                 violation = {
                     'duration': time_elapsed, 
                     'lat1': starting_point['latitude'],
@@ -182,9 +178,7 @@ def speed_violation(gps_data, type, speed_limit, time):
                 }
 
                 list_violations.append(violation)
-                # list_violations.append(({'duration': time_elapsed}, starting_point, gps_data[i-1]))
-
-            time_elapsed = -1
+            time_elapsed = 0
             first_point = True
 
     return list_violations
