@@ -418,22 +418,16 @@ def detour_info(i, r, route, traj):
     return i, r, detour, missed_route
 
 def check_neighbors(detour, missed_route, grid_cells):
-    match = False
+    # A detour cell must be adjacent to at least one missed_route cell
     err = 0
-
     width = len(grid_cells[0])
     length = len(grid_cells) * len(grid_cells[0])
 
     for d in detour:
         for r in missed_route:
-            if d in adjacent_cells(r, width, length):
-                match = True 
+            if d not in adjacent_cells(r, width, length):
+                err = 1
                 break
-            else:
-                match = False 
-        if match == False:
-            err = 1
-            break 
     return err
 
 def adjacent_cells(d, w, l):
