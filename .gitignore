@@ -135,3 +135,6 @@ project2/config.py
 project2/*.db
 *.gpx
 static
+load_db.py
+upload_files/
+old_routes.py

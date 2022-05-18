@@ -24,8 +24,11 @@ def list_to_string(list):
 def string_to_list(string):
     return [int(element) for element in string.split(',')]
 
-def allowed_file(filename):
+def is_gpx_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'gpx'
+
+def is_csv_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'csv'
 
 def create_geojson_feature(gps_data):
     geojson = {
@@ -67,7 +70,23 @@ def generate_corner_pts(gps_data, buffer=0.1):
 
     return Point(greatest_lat, least_long), Point(least_lat, greatest_long)
 
-def create_stops_gpx(stops):
+def csv_to_gpx_stops(stop_file):
+    stops = []
+
+    stop_file.readline()
+    list_of_lines = stop_file.readlines()
+
+    for line in list_of_lines:
+        line = line.decode("utf-8").split(',')
+        stop = {}
+
+        stop['lat1'] = line[1]
+        stop['long1'] = line[2]
+        stop['lat2'] = line[3]
+        stop['long2'] = line[4].strip()
+
+        stops.append(stop)
+
     gpx = gpxpy.gpx.GPX()
 
     for stop in stops:
@@ -105,7 +124,7 @@ def parse_gpx_waypoints(gpx_file):
 
     return waypoints
 
-def distance_travelled(gps_data):
+def compute_distance_travelled(gps_data):
     """
     Calculates total distance travelled in km
     """
@@ -130,14 +149,14 @@ def speed_between_points(lon1, lat1, time1, lon2, lat2, time2):
     d_distance = haversine((lat1, lon1), (lat2, lon2))
     return d_distance / d_time
 
-def speed_violation(gps_data, type, speed_limit, time):
+def compute_speed_violation(gps_data, type, speed_limit, time):
     """
     Determines if a speed violation of {speed_limit}
     occured for {time} minutes, given {type} of analysis.
     Input:
         type = "Explicit" or "Location"
         speed_limit in km/hr
-        time in minutes
+        time in seconds
     """
     time_elapsed = 0
     first_point = True
@@ -166,7 +185,7 @@ def speed_violation(gps_data, type, speed_limit, time):
             else: 
                 time_elapsed += time1.timestamp() - time0.timestamp() 
         else:
-            if sec_to_minute(time_elapsed) >= time:
+            if time_elapsed >= time:
                 violation = {
                     'duration': time_elapsed, 
                     'lat1': starting_point['latitude'],
@@ -223,7 +242,17 @@ def stop_violation(gps_data, min_time, max_time, point1, point2):
 
     return results
 
-def check_liveness(gps_data, time_limit):
+def compute_stop_violation(stops, gps_data_vehicle, min_time, max_time):
+    stop_violations = []
+    for i in range(len(stops)):
+        if i % 2 == 0:
+            point1 = Point(stops[i]['latitude'], stops[i]['longitude'])
+            point2 = Point(stops[i+1]['latitude'], stops[i+1]['longitude'])
+            stop_violations += stop_violation(gps_data_vehicle, min_time, max_time, point1, point2)
+
+    return stop_violations
+
+def compute_liveness(gps_data, time_limit):
     """
     Determines total "aliveness" time of a vehicle. The
     vehicle is considered "alive" if the gaps between
@@ -339,7 +368,7 @@ def route_check(set_route, vehicle_route):
 
     return loops
 
-def loop_counting(route, traj, grid_cells):
+def compute_loops(route, traj, grid_cells):
     errors = 0
     loops = 0
     r = 0
