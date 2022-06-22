@@ -13,6 +13,7 @@ from project2.api import parse_gpx_file, compute_distance_travelled, compute_spe
 
 PER_PAGE = 8
 QUERY_LIMIT = 7
+CONFIG_FILE_PATH = 'project2/config.py'
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -763,6 +764,49 @@ def set_cutofftime():
     }
 
     return jsonify(data), 200
+
+@app.route('/api/admin/northboundkey', methods=['GET'])
+def get_northbound_key():
+    config_file = open(CONFIG_FILE_PATH, 'r')
+    lines = config_file.readlines()
+
+    northbound_username = ''
+    northbound_password = ''
+
+    for line in lines:
+        if 'NORTHBOUND_USERNAME' in line[1:21]:
+            northbound_username = line[24:-2]
+        elif 'NORTHBOUND_PASSWORD' in line[1:21]:
+            northbound_password = line[24:-2]
+
+    config_file.close()
+
+    return jsonify({'northbound_username': northbound_username, 'northbound_password': northbound_password}), 200
+
+@app.route('/api/admin/northboundkey', methods=['PUT'])
+def set_northbound_key():
+    new_username = request.get_json()['username']
+    new_password = request.get_json()['password']
+
+    file = open(CONFIG_FILE_PATH, 'r')
+    lines = file.readlines()
+    file.close()
+
+    config_file = open(CONFIG_FILE_PATH, 'w')
+
+    for line in lines:
+        if 'NORTHBOUND_USERNAME' in line[1:21]:
+            new_line = line[0:24] + new_username + line[-2:]
+            config_file.write(new_line)
+        elif 'NORTHBOUND_PASSWORD' in line[1:21]:
+            new_line = line[0:24] + new_password + line[-2:]
+            config_file.write(new_line)
+        else:
+            config_file.write(line)
+
+    config_file.close()
+
+    return jsonify({'new_username': new_username, 'new_password': new_password}), 200
 
 @app.route('/api/northbound/token', methods=['GET'])
 def northbound_connect():
