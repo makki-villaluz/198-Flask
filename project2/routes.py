@@ -766,10 +766,10 @@ def set_cutofftime():
 
 @app.route('/api/northbound/token', methods=['GET'])
 def northbound_connect():
-    access_token = post(app.config['NORTHBOUND_LOGIN'], auth=(app.config['NORTHBOUND_USERNAME'], app.config['NORTHBOUND_PASSWORD'])).json()['access_token']
+    access_token = post(app.config['NORTHBOUND_URL'] + '/login', auth=(app.config['NORTHBOUND_USERNAME'], app.config['NORTHBOUND_PASSWORD'])).json()['access_token']
 
     if access_token:
-        return jsonify({'northbound_url': app.config['NORTHBOUND_CONNECTION'], 'access_token': access_token}), 200
+        return jsonify({'northbound_url': app.config['NORTHBOUND_URL'], 'access_token': access_token}), 200
 
     return jsonify({'error': 'Cannot login to Northbound API'})
 
