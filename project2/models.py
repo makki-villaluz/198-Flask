@@ -175,3 +175,13 @@ class Liveness(db.Model):
 
     def __repr__(self):
         return f"Liveness('{self.id}', '{self.liveness}', '{self.time1}', '{self.time2}', '{self.analysis_id}')"
+
+class GPSCutoffTime(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    time = db.Column(db.Time, default=None)
+
+    def __init__(self, time):
+        self.time = time
+
+    def __repr__(self):
+        return f"GPSCutofTime('{self.id}', {self.time})"

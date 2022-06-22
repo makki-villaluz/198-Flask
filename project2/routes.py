@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, date
 from flask import request, jsonify, send_file, current_app
 from flask_cors import CORS
 from project2 import app, db
-from project2.models import User, Vehicle, Route, Parameters, Analysis, Distance, Loops, Speeding, Stops, Liveness
+from project2.models import User, Vehicle, Route, Parameters, Analysis, Distance, Loops, Speeding, Stops, Liveness, GPSCutoffTime
 from project2.api import parse_gpx_file, compute_distance_travelled, compute_speed_violation, compute_stop_violation, compute_liveness, generate_grid_fence, generate_path, route_check, is_gpx_file, is_csv_file, create_geojson_feature, csv_to_gpx_stops, generate_corner_pts, parse_gpx_waypoints, Point, compute_loops
 
 PER_PAGE = 8
@@ -729,6 +729,40 @@ def get_liveness(id):
             return jsonify(data), 200
 
     return jsonify({'error': 'liveness does not exist'}), 400
+
+@app.route('/api/admin/cutofftime', methods=['GET'])
+def get_cutofftime():
+    cut_off_time = GPSCutoffTime.query.first()
+
+    if cut_off_time:
+        data = {
+            'cut_off_time': cut_off_time.time.strftime("%H:%M")
+        }
+
+        return jsonify(data), 200
+
+    return jsonify({'error': 'cut off time not set'}), 400
+
+@app.route('/api/admin/cutofftime', methods=['PUT'])
+def set_cutofftime():
+    time = request.get_json()['cut_off_time']
+    cut_off_time = GPSCutoffTime.query.first()
+
+    time = datetime.strptime(time, '%H:%M:%S').time()
+
+    if cut_off_time:
+        cut_off_time.time = time
+    else:
+        cut_off_time = GPSCutoffTime(time)
+        db.session.add(cut_off_time)
+
+    db.session.commit()
+
+    data = {
+        'cut_off_time': cut_off_time.time.strftime('%H:%M')
+    }
+
+    return jsonify(data), 200
 
 @app.route('/api/northbound/token', methods=['GET'])
 def northbound_connect():
