@@ -2,6 +2,7 @@ import os
 import jwt
 import json
 import numpy as np
+from requests import post
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, date
 from flask import request, jsonify, send_file, current_app
@@ -728,3 +729,101 @@ def get_liveness(id):
             return jsonify(data), 200
 
     return jsonify({'error': 'liveness does not exist'}), 400
+
+@app.route('/api/northbound/token', methods=['GET'])
+def northbound_connect():
+    access_token = post(app.config['NORTHBOUND_LOGIN'], auth=(app.config['NORTHBOUND_USERNAME'], app.config['NORTHBOUND_PASSWORD'])).json()['access_token']
+
+    if access_token:
+        return jsonify({'northbound_url': app.config['NORTHBOUND_CONNECTION'], 'access_token': access_token}), 200
+
+    return jsonify({'error': 'Cannot login to Northbound API'})
+
+@app.route('/api/route/refresh', methods=['PUT'])
+def route_refresh():
+    list_of_routes = request.get_json()['routes']
+    
+    for route in list_of_routes:
+        stored_route = Route.query.filter_by(name=route['route_name']).first()
+
+        if not stored_route:
+            new_route = Route(route['route_name'])
+
+            db.session.add(new_route)
+            db.session.commit()
+
+            new_parameter = Parameters(route['route_name'], new_route.id)
+            db.session.add(new_parameter)
+            db.session.commit()
+
+    paged_routes = Route.query.paginate(page=1, per_page=PER_PAGE)
+
+    if paged_routes:
+        data = []
+
+        for route in paged_routes.items:
+            route_data = {
+                'id': route.id,
+                'route_name': route.name,
+                'ref_filename': route.ref_filename if route.ref_filename else json.dumps(None),
+                'stop_filename': route.stop_filename if route.stop_filename else json.dumps(None),
+                'date_uploaded': route.date_uploaded.strftime("%b %d, %Y") if route.date_uploaded else json.dumps(None)
+            }
+
+            data.append(route_data)
+
+        return jsonify({
+            'routes': data,
+            'total_rows': paged_routes.total,
+            'per_page': paged_routes.per_page,
+            'curr_page': paged_routes.page
+        }), 200
+
+    return jsonify({'error': 'paged routes cannot be found'}), 200
+
+@app.route('/api/parameter/refresh', methods=['PUT'])
+def parameter_refresh():
+    list_of_routes = request.get_json()['routes']
+
+    for route in list_of_routes:
+        stored_route = Route.query.filter_by(name=route['route_name']).first()
+
+        if not stored_route:
+            new_route = Route(route['route_name'])
+
+            db.session.add(new_route)
+            db.session.commit()
+
+            new_parameter = Parameters(route['route_name'], new_route.id)
+            db.session.add(new_parameter)
+            db.session.commit()
+
+    paged_parameters = Parameters.query.paginate(page=1, per_page=PER_PAGE)
+
+    if paged_parameters:
+        data = []
+
+        for parameter in paged_parameters.items:
+            route = Route.query.get(parameter.route_id)
+            
+            parameter_data = {
+                'id': parameter.id,
+                'route_name': route.name,
+                'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
+                'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
+                'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
+                'speeding_time_limit': parameter.speeding_time_limit if parameter.speeding_time_limit else json.dumps(None),
+                'speeding_speed_limit': parameter.speeding_speed_limit if parameter.speeding_speed_limit else json.dumps(None),
+                'liveness_time_limit': parameter.liveness_time_limit if parameter.liveness_time_limit else json.dumps(None)
+            }
+
+            data.append(parameter_data)
+        
+        return jsonify({
+            'parameters': data,
+            'total_rows': paged_parameters.total,
+            'per_page': paged_parameters.per_page,
+            'curr_page': paged_parameters.page
+        }), 200
+    
+    return jsonify({'error': 'paged parameters cannot be found'}), 400
