@@ -817,10 +817,25 @@ def set_northbound_key():
 
 @app.route('/api/northbound/token', methods=['GET'])
 def northbound_connect():
-    access_token = post(app.config['NORTHBOUND_URL'] + '/login', auth=(app.config['NORTHBOUND_USERNAME'], app.config['NORTHBOUND_PASSWORD'])).json()['access_token']
+    config_file = open(CONFIG_FILE_PATH, 'r')
+    lines = config_file.readlines()
+
+    northbound_url = ''
+    northbound_username = ''
+    northbound_password = ''
+
+    for line in lines:
+        if 'NORTHBOUND_URL' in line[1:15]:
+            northbound_url = line[19:-2]
+        elif 'NORTHBOUND_USERNAME' in line[1:21]:
+            northbound_username = line[24:-2]
+        elif 'NORTHBOUND_PASSWORD' in line[1:21]:
+            northbound_password = line[24:-2]
+
+    access_token = post(northbound_url + '/login', auth=(northbound_username, northbound_password)).json()['access_token']
 
     if access_token:
-        return jsonify({'northbound_url': app.config['NORTHBOUND_URL'], 'access_token': access_token}), 200
+        return jsonify({'northbound_url': northbound_url, 'access_token': access_token}), 200
 
     return jsonify({'error': 'Cannot login to Northbound API'})
 
