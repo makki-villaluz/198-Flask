@@ -770,21 +770,25 @@ def get_northbound_key():
     config_file = open(CONFIG_FILE_PATH, 'r')
     lines = config_file.readlines()
 
+    northbound_url = ''
     northbound_username = ''
     northbound_password = ''
 
     for line in lines:
-        if 'NORTHBOUND_USERNAME' in line[1:21]:
+        if 'NORTHBOUND_URL' in line[1:15]:
+            northbound_url = line[19:-2]
+        elif 'NORTHBOUND_USERNAME' in line[1:21]:
             northbound_username = line[24:-2]
         elif 'NORTHBOUND_PASSWORD' in line[1:21]:
             northbound_password = line[24:-2]
 
     config_file.close()
 
-    return jsonify({'northbound_username': northbound_username, 'northbound_password': northbound_password}), 200
+    return jsonify({'northbound_url': northbound_url, 'northbound_username': northbound_username, 'northbound_password': northbound_password}), 200
 
 @app.route('/api/admin/northboundkey', methods=['PUT'])
 def set_northbound_key():
+    new_url = request.get_json()['url']
     new_username = request.get_json()['username']
     new_password = request.get_json()['password']
 
@@ -795,7 +799,10 @@ def set_northbound_key():
     config_file = open(CONFIG_FILE_PATH, 'w')
 
     for line in lines:
-        if 'NORTHBOUND_USERNAME' in line[1:21]:
+        if 'NORTHBOUND_URL' in line[1:15]:
+            new_line = line[0:19] + new_url + line[-2:]
+            config_file.write(new_line)
+        elif 'NORTHBOUND_USERNAME' in line[1:21]:
             new_line = line[0:24] + new_username + line[-2:]
             config_file.write(new_line)
         elif 'NORTHBOUND_PASSWORD' in line[1:21]:
@@ -806,7 +813,7 @@ def set_northbound_key():
 
     config_file.close()
 
-    return jsonify({'new_username': new_username, 'new_password': new_password}), 200
+    return jsonify({'new_url': new_url, 'new_username': new_username, 'new_password': new_password}), 200
 
 @app.route('/api/northbound/token', methods=['GET'])
 def northbound_connect():
