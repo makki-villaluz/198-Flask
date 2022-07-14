@@ -42,15 +42,15 @@ class Route(db.Model):
 
 class Vehicle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    vehicle_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(60), nullable=False)
     filename = db.Column(db.String(60), unique=True, nullable=False)
     date_uploaded = db.Column(db.Date, default=datetime.date.today(), nullable=False)
     route_id = db.Column(db.Integer, db.ForeignKey('route.id'))
     analysis = db.relationship('Analysis', backref='vehicle', lazy='select', uselist=False)
 
-    def __init__(self, filename, vehicle_id, route_id):
+    def __init__(self, filename, name, route_id):
         self.filename = filename
-        self.vehicle_id = vehicle_id
+        self.name = name
         self.route_id = route_id
 
     def __repr__(self):

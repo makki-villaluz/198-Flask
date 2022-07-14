@@ -50,12 +50,11 @@ def create_route():
 @app.route('/api/parameter', methods=['POST'])
 def create_parameters():
     name = request.get_json()['name']
-    route_id = int(request.get_json()['route_id'])
 
     parameters = Parameters.query.filter_by(name=name).first()
-    route = Route.query.get(route_id)
+    route = Route.query.filter_by(name=name).first()
     if not parameters and route:
-        parameters = Parameters(name, route_id)
+        parameters = Parameters(name, route.id)
         db.session.add(parameters)
         db.session.commit()
 
@@ -77,23 +76,23 @@ def create_parameters():
 
 @app.route('/api/vehicle', methods=['POST'])
 def create_vehicle():
-    vehicle_id = int(request.form['vehicle_id'])
-    route_id = int(request.form['route_id'])
+    vehicle_name = request.form['vehicle_name']
+    route_name = request.form['route_name']
     gpx_file = request.files['gpx_file']
     filename = gpx_file.filename
 
-    route = Route.query.get(route_id)
+    route = Route.query.filter_by(name=route_name).first()
 
     if gpx_file and route and is_gpx_file(filename):
         gpx_file.save(os.path.join(app.config['GPX_VEHICLE_FOLDER'], filename))
 
-        vehicle = Vehicle(filename, vehicle_id, route_id)
+        vehicle = Vehicle(filename, vehicle_name, route.id)
         db.session.add(vehicle)
         db.session.commit()
 
         data = {
             'id': vehicle.id,
-            'vehicle_id': vehicle.vehicle_id,
+            'name': vehicle.name,
             'filename': vehicle.filename,
             'date_uploaded': vehicle.date_uploaded,
             'route_id': vehicle.route_id
@@ -223,7 +222,7 @@ def get_paged_routes(page_no):
         for route in paged_routes.items:
             route_data = {
                 'id': route.id,
-                'route_name': route.name,
+                'name': route.name,
                 'ref_filename': route.ref_filename if route.ref_filename else json.dumps(None),
                 'stop_filename': route.stop_filename if route.stop_filename else json.dumps(None),
                 'date_uploaded': route.date_uploaded.strftime("%b %d, %Y") if route.date_uploaded else json.dumps(None)
@@ -251,7 +250,7 @@ def get_vehicle(vehicle_id):
 
         data = {
             'id': vehicle.id,
-            'vehicle_id': vehicle.vehicle_id,
+            'name': vehicle.name,
             'filename': vehicle.filename,
             'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y"),
             'route_id': vehicle.route_id,
@@ -275,7 +274,7 @@ def get_paged_vehicles(page_no):
 
             vehicle_data = {
                 'id': vehicle.id,
-                'vehicle_id': vehicle.vehicle_id,
+                'name': vehicle.name,
                 'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y"),
                 'route_name': route.name
             }
@@ -300,7 +299,7 @@ def get_parameter(parameter_id):
 
         data = {
             'id': parameter.id,
-            'route_name': route.name,
+            'name': parameter.name,
             'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
             'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
             'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
@@ -311,6 +310,7 @@ def get_parameter(parameter_id):
             'polygon': json.dumps(None),
             'ref_filename': json.dumps(None),
             'stop_filename': json.dumps(None),
+            'route_id': parameter.route_id
         }
 
         if route.ref_filename:
@@ -337,11 +337,9 @@ def get_paged_parameters(page_no):
         data = []
 
         for parameter in paged_parameters.items:
-            route = Route.query.get(parameter.route_id)
-
             parameter_data = {
                 'id': parameter.id,
-                'route_name': route.name,
+                'name': parameter.name,
                 'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
                 'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
                 'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
@@ -363,8 +361,8 @@ def get_paged_parameters(page_no):
 
 @app.route('/api/vehicle/search/<int:page_no>', methods=['POST'])
 def search_vehicles(page_no):
-    id = request.get_json()['id']
-    route_name = request.get_json()['route']
+    vehicle_name = request.get_json()['vehicle_name']
+    route_name = request.get_json()['route_name']
     date = request.get_json()['date']
 
     search_vehicles = []
@@ -382,7 +380,7 @@ def search_vehicles(page_no):
             }), 200
 
     columns = {
-        "vehicle_id": id,
+        "name": vehicle_name,
         "route_id" : route.id if route else "", 
         "date_uploaded": date
     }
@@ -399,7 +397,7 @@ def search_vehicles(page_no):
 
             vehicle_data = {
                 'id': vehicle.id,
-                'vehicle_id': vehicle.vehicle_id,
+                'name': vehicle.name,
                 'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y"),
                 'route_name': route.name
             }
@@ -417,14 +415,14 @@ def search_vehicles(page_no):
 
 @app.route('/api/route/search/<int:page_no>', methods=['POST'])
 def search_routes(page_no):
-    route_name = request.get_json()['route']
+    route_name = request.get_json()['route_name']
 
     route = Route.query.filter_by(name=route_name).first()
     
     if route:
         data = {
             'id': route.id,
-            'route_name': route.name,
+            'name': route.name,
             'ref_filename': route.ref_filename if route.ref_filename else json.dumps(None),
             'stop_filename': route.stop_filename if route.stop_filename else json.dumps(None),
             'date_uploaded': route.date_uploaded.strftime("%b %d, %Y") if route.date_uploaded else json.dumps(None)
@@ -449,16 +447,14 @@ def search_routes(page_no):
 
 @app.route('/api/parameter/search/<int:page_no>', methods=['POST'])
 def search_parameters(page_no):
-    route_name = request.get_json()['route']
+    parameter_name = request.get_json()['parameter_name']
 
-    route = Route.query.filter_by(name=route_name).first()
+    parameter = Parameters.query.filter_by(name=parameter_name).first()
 
-    if route:
-        parameter = Parameters.query.filter_by(route_id=route.id).first()
-
+    if parameter:
         data = {
             'id': parameter.id,
-            'route_name': route.name,
+            'name': parameter.name,
             'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
             'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
             'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
@@ -484,11 +480,11 @@ def search_parameters(page_no):
     
     return jsonify({'error': 'paged parameters cannot be found'}), 400
 
-@app.route('/api/auto-complete/id', methods=['POST'])
-def auto_complete_id():
-    id = request.get_json()['id']
+@app.route('/api/auto-complete/vehicle', methods=['POST'])
+def auto_complete_vehicle():
+    vehicle_name = request.get_json()['vehicle_name']
 
-    search_vehicles = Vehicle.query.filter(Vehicle.vehicle_id.ilike(f"%{id}%")).with_entities(Vehicle.vehicle_id).distinct().all()
+    search_vehicles = Vehicle.query.filter(Vehicle.name.ilike(f"%{vehicle_name}%")).with_entities(Vehicle.name).distinct().limit(QUERY_LIMIT).all()
 
     if len(search_vehicles):
         search_vehicles = np.squeeze(np.array(search_vehicles), axis=1)
@@ -504,11 +500,11 @@ def auto_complete_id():
 
     return jsonify({'error': 'searched vehicles cannot be found'}), 400
 
-@app.route('/api/auto-complete/name', methods=['POST'])
-def auto_complete_name():
-    route = request.get_json()['route']
+@app.route('/api/auto-complete/route', methods=['POST'])
+def auto_complete_route():
+    route_name = request.get_json()['route_name']
 
-    search_routes = Route.query.filter(Route.name.ilike(f"%{route}%")).limit(QUERY_LIMIT).all()
+    search_routes = Route.query.filter(Route.name.ilike(f"%{route_name}%")).limit(QUERY_LIMIT).all()
 
     if search_routes:
         data = []
@@ -527,10 +523,10 @@ def auto_complete_name():
 
     return jsonify({'error': 'searched routes cannot be found'}), 400
 
-@app.route('/api/vehicle/analyze/<int:id>', methods=['GET'])
-def analyze_vehicle(id):
+@app.route('/api/vehicle/analyze/<int:vehicle_id>', methods=['GET'])
+def analyze_vehicle(vehicle_id):
     # query tables from db
-    vehicle = Vehicle.query.get(id)
+    vehicle = Vehicle.query.get(vehicle_id)
     route = Route.query.get(vehicle.route_id)
 
     if vehicle.analysis == None:
@@ -844,15 +840,15 @@ def route_refresh():
     list_of_routes = request.get_json()['routes']
     
     for route in list_of_routes:
-        stored_route = Route.query.filter_by(name=route['route_name']).first()
+        stored_route = Route.query.filter_by(name=route['route_id']).first()
 
         if not stored_route:
-            new_route = Route(route['route_name'])
+            new_route = Route(route['route_id'])
 
             db.session.add(new_route)
             db.session.commit()
 
-            new_parameter = Parameters(route['route_name'], new_route.id)
+            new_parameter = Parameters(route['route_id'], new_route.id)
             db.session.add(new_parameter)
             db.session.commit()
 
@@ -864,7 +860,7 @@ def route_refresh():
         for route in paged_routes.items:
             route_data = {
                 'id': route.id,
-                'route_name': route.name,
+                'name': route.name,
                 'ref_filename': route.ref_filename if route.ref_filename else json.dumps(None),
                 'stop_filename': route.stop_filename if route.stop_filename else json.dumps(None),
                 'date_uploaded': route.date_uploaded.strftime("%b %d, %Y") if route.date_uploaded else json.dumps(None)
@@ -886,15 +882,15 @@ def parameter_refresh():
     list_of_routes = request.get_json()['routes']
 
     for route in list_of_routes:
-        stored_route = Route.query.filter_by(name=route['route_name']).first()
+        stored_route = Route.query.filter_by(name=route['route_id']).first()
 
         if not stored_route:
-            new_route = Route(route['route_name'])
+            new_route = Route(route['route_id'])
 
             db.session.add(new_route)
             db.session.commit()
 
-            new_parameter = Parameters(route['route_name'], new_route.id)
+            new_parameter = Parameters(route['route_id'], new_route.id)
             db.session.add(new_parameter)
             db.session.commit()
 
@@ -908,7 +904,7 @@ def parameter_refresh():
             
             parameter_data = {
                 'id': parameter.id,
-                'route_name': route.name,
+                'name': route.name,
                 'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
                 'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
                 'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
