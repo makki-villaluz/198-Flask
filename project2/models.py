@@ -1,29 +1,20 @@
 import datetime
 from project2 import db
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(60), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
+    admin = db.Column(db.Boolean, nullable=False)
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, admin=False):
         self.username = username
         self.password = generate_password_hash(password, method='sha256')
+        self.admin = admin
 
-    @classmethod
-    def authenticate(cls, **kwargs):
-        username = kwargs.get('username')
-        password = kwargs.get('password')
-
-        if not username or not password:
-            return None
-
-        user = cls.query.filter_by(username=username).first()
-        if not user or not check_password_hash(user.password, password):
-            return None
-
-        return user
+    def __repr__(self):
+        return f"User('{self.id}','{self.username}','{self.admin}')"
 
 class Route(db.Model):
     id = db.Column(db.Integer, primary_key=True)
