@@ -2,6 +2,7 @@ import os
 import jwt
 import json
 import numpy as np
+import boto3
 from requests import post
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, date
@@ -14,6 +15,18 @@ from project2.api import parse_gpx_file, compute_distance_travelled, compute_spe
 PER_PAGE = 8
 QUERY_LIMIT = 7
 CONFIG_FILE_PATH = 'project2/config.py'
+
+AWS_ACCESS_KEY = app.config['AWS_ACCESS_KEY']
+AWS_SECRET_KEY = app.config['AWS_SECRET_KEY']
+REGION_NAME = app.config['AWS_REGION_NAME']
+VEHICLE_BUCKET = app.config['AWS_VEHICLE_BUCKET']
+ROUTE_BUCKET = app.config['AWS_ROUTE_BUCKET']
+
+s3 = boto3.client('s3', 
+    aws_access_key_id=AWS_ACCESS_KEY,
+    aws_secret_access_key=AWS_SECRET_KEY,
+    region_name=REGION_NAME
+)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -108,24 +121,23 @@ def update_route(route_id):
     ref_filename = secure_filename(ref_file.filename)
 
     stop_file = request.files['stop_file']
-    stop_filename = secure_filename(stop_file.filename)
+    stop_filename = secure_filename(stop_file.filename).rsplit('.')[0] + '.gpx'
 
-    if ref_file and is_gpx_file(ref_filename) and stop_file and is_csv_file(stop_filename):
+    if ref_file and is_gpx_file(ref_filename) and stop_file and is_csv_file(stop_file.filename):
         route = Route.query.get(route_id)
 
         route_with_ref_file = Route.query.filter_by(ref_filename=ref_filename).first()
         if not route_with_ref_file:
-            ref_file.save(os.path.join(app.config['GPX_ROUTE_FOLDER'], ref_filename))
+            res = s3.put_object(Body=ref_file.read(), Bucket=ROUTE_BUCKET, Key=ref_filename)
 
         route.ref_filename = ref_filename
 
-        route_with_stop_file = Route.query.filter_by(stop_filename=stop_filename.rsplit('.')[0] + '.gpx').first()
+        route_with_stop_file = Route.query.filter_by(stop_filename=stop_filename).first()
         if not route_with_stop_file:
             gpx = csv_to_gpx_stops(stop_file)
-            with open(os.path.join(app.config['GPX_STOP_FOLDER'], stop_filename.rsplit('.')[0] + '.gpx'), 'w') as gpx_file:
-                gpx_file.write(gpx.to_xml())
+            res = s3.put_object(Body=gpx.to_xml(), Bucket=ROUTE_BUCKET, Key=stop_filename)
 
-        route.stop_filename = stop_filename.rsplit('.')[0] + '.gpx'
+        route.stop_filename = stop_filename
 
         route.date_uploaded = date.today()
         
@@ -197,16 +209,16 @@ def get_route(route_id):
         }
 
         if route.ref_filename:
-            with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], route.ref_filename)) as gpx_file:
-                gps_data = parse_gpx_file(gpx_file)
-                data['geojson'] = create_geojson_feature(gps_data)
-                data['ref_filename'] = route.ref_filename
+            gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.ref_filename)['Body'].read()
+            gps_data = parse_gpx_file(gpx_file)
+            data['geojson'] = create_geojson_feature(gps_data)
+            data['ref_filename'] = route.ref_filename
 
         if route.stop_filename:
-            with open(os.path.join(app.config['GPX_STOP_FOLDER'], route.stop_filename)) as gpx_file:
-                gps_data = parse_gpx_waypoints(gpx_file)
-                data['polygon'] = create_geojson_feature(gps_data)
-                data['stop_filename'] = route.stop_filename
+            gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.stop_filename)['Body'].read()
+            gps_data = parse_gpx_waypoints(gpx_file)
+            data['polygon'] = create_geojson_feature(gps_data)
+            data['stop_filename'] = route.stop_filename
 
         return jsonify(data), 200
 
@@ -243,10 +255,10 @@ def get_paged_routes(page_no):
 def get_vehicle(vehicle_id):
     vehicle = Vehicle.query.get(vehicle_id)
 
-    if vehicle:
-        with open(os.path.join(app.config['GPX_VEHICLE_FOLDER'], vehicle.filename)) as gpx_file:
-            gps_data = parse_gpx_file(gpx_file)
-            geojson = create_geojson_feature(gps_data)
+    if vehicle:            
+        gpx_file = s3.get_object(Bucket=VEHICLE_BUCKET, Key=vehicle.filename)['Body'].read()
+        gps_data = parse_gpx_file(gpx_file)
+        geojson = create_geojson_feature(gps_data)
 
         data = {
             'id': vehicle.id,
@@ -314,16 +326,16 @@ def get_parameter(parameter_id):
         }
 
         if route.ref_filename:
-            with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], route.ref_filename)) as gpx_file:
-                gps_data = parse_gpx_file(gpx_file)
-                data['geojson'] = create_geojson_feature(gps_data)
-                data['ref_filename'] = route.ref_filename
+            gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.ref_filename)['Body'].read()
+            gps_data = parse_gpx_file(gpx_file)
+            data['geojson'] = create_geojson_feature(gps_data)
+            data['ref_filename'] = route.ref_filename
 
         if route.stop_filename:
-            with open(os.path.join(app.config['GPX_STOP_FOLDER'], route.stop_filename)) as gpx_file:
-                gps_data = parse_gpx_waypoints(gpx_file)
-                data['polygon'] = create_geojson_feature(gps_data)
-                data['stop_filename'] = route.stop_filename
+            gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.stop_filename)['Body'].read()
+            gps_data = parse_gpx_waypoints(gpx_file)
+            data['polygon'] = create_geojson_feature(gps_data)
+            data['stop_filename'] = route.stop_filename
 
         return jsonify(data), 200
 
@@ -536,14 +548,14 @@ def analyze_vehicle(vehicle_id):
         db.session.commit()        
 
     # read gpx files from file system
-    with open(os.path.join(app.config['GPX_VEHICLE_FOLDER'], vehicle.filename)) as gpx_file:
-        gps_data_vehicle = parse_gpx_file(gpx_file)
+    gpx_file = s3.get_object(Bucket=VEHICLE_BUCKET, Key=vehicle.filename)['Body'].read()
+    gps_data_vehicle = parse_gpx_file(gpx_file)
 
-    with open(os.path.join(app.config['GPX_ROUTE_FOLDER'], route.ref_filename)) as gpx_file:
-        gps_data_route = parse_gpx_file(gpx_file)
+    gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.ref_filename)['Body'].read()
+    gps_data_route = parse_gpx_file(gpx_file)
 
-    with open(os.path.join(app.config['GPX_STOP_FOLDER'], route.stop_filename)) as gpx_file:
-        stops = parse_gpx_waypoints(gpx_file)
+    gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.stop_filename)['Body'].read()
+    stops = parse_gpx_waypoints(gpx_file)
 
     # compute distance
     distance = compute_distance_travelled(gps_data_vehicle)
