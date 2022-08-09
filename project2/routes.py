@@ -566,7 +566,7 @@ def search_parameters(curr_user, page_no):
             'curr_page': 1
         })
     
-    elif route == None:
+    elif parameter == None:
         return jsonify({
             'parameters': [],
             'total_rows': 0,
