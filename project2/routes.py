@@ -4,7 +4,9 @@ import json
 import numpy as np
 import boto3
 from requests import post
+from functools import wraps
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash
 from datetime import datetime, timedelta, date
 from flask import request, jsonify, send_file, current_app
 from flask_cors import CORS
@@ -37,8 +39,67 @@ def catch_all(path):
     index_path = os.path.join(app.static_folder, 'index.html')
     return send_file(index_path)
 
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+
+        if 'X-Access-Token' in request.headers:
+            token = request.headers['X-Access-Token']
+        
+        if not token:
+            return jsonify({'error': 'Access Token is missing'}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            curr_user = User.query.filter_by(username=data['username']).first()
+            if not curr_user:
+                raise
+
+        except:
+            return jsonify({'error': 'Access Token is invalid'}), 401
+
+        return f(curr_user, *args, **kwargs)
+
+    return decorated
+
+def admin_only(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if args[0].admin:
+            return f(*args, **kwargs)
+
+        return jsonify({'error': 'unauthorized user'}), 403
+
+    return decorated
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    username = request.get_json()['username']
+    password = request.get_json()['password']
+
+    user = User.query.filter_by(username=username).first()
+
+    if user is None:
+        return jsonify({'error': 'Incorrect credentials'}), 422
+
+    if check_password_hash(user.password, password):
+        token = jwt.encode(
+            {
+                'username': user.username, 
+                'exp': datetime.utcnow() + timedelta(hours=4),
+                'admin': user.admin
+            },
+            app.config['SECRET_KEY']
+        )
+        return jsonify({'token': token, 'username': user.username, 'admin': user.admin}), 200
+    else:
+        return jsonify({'error': 'Incorrect credentials'}), 422
+
 @app.route('/api/route', methods=['POST'])
-def create_route():
+@token_required
+@admin_only
+def create_route(curr_user):
     name = request.get_json()['name']
 
     route = Route.query.filter_by(name=name).first()
@@ -61,7 +122,9 @@ def create_route():
     return jsonify({'error': 'route entry creation failed'}), 400
 
 @app.route('/api/parameter', methods=['POST'])
-def create_parameters():
+@token_required
+@admin_only
+def create_parameters(curr_user):
     name = request.get_json()['name']
 
     parameters = Parameters.query.filter_by(name=name).first()
@@ -88,7 +151,9 @@ def create_parameters():
     return jsonify({'error': 'parameters entry creation failed'}), 400
 
 @app.route('/api/vehicle', methods=['POST'])
-def create_vehicle():
+@token_required
+@admin_only
+def create_vehicle(curr_user):
     vehicle_name = request.form['vehicle_name']
     route_name = request.form['route_name']
     gpx_file = request.files['gpx_file']
@@ -116,7 +181,9 @@ def create_vehicle():
     return jsonify({'error': 'vehicle entry creation failed'}), 400
 
 @app.route('/api/route/<int:route_id>', methods=['PUT'])
-def update_route(route_id):
+@token_required
+@admin_only
+def update_route(curr_user, route_id):
     ref_file = request.files['ref_file']
     ref_filename = secure_filename(ref_file.filename)
 
@@ -156,7 +223,9 @@ def update_route(route_id):
     return jsonify({'error': 'route file upload failed'}), 400
 
 @app.route('/api/parameter/<int:parameters_id>', methods=['PUT'])
-def update_parameters(parameters_id):
+@token_required
+@admin_only
+def update_parameters(curr_user, parameters_id):
     cell_size = request.get_json()['cell_size']
     stop_min_time = request.get_json()['stop_min_time']
     stop_max_time = request.get_json()['stop_max_time']
@@ -193,7 +262,9 @@ def update_parameters(parameters_id):
     return jsonify({'error': 'parameters entry failed to update'}), 400
 
 @app.route('/api/route/<int:route_id>', methods=['GET'])
-def get_route(route_id):
+@token_required
+@admin_only
+def get_route(curr_user, route_id):
     route = Route.query.get(route_id)
 
     if route: 
@@ -225,7 +296,9 @@ def get_route(route_id):
     return jsonify({'error': 'route does not exist'}), 400
 
 @app.route('/api/route/paged/<int:page_no>', methods=['GET'])
-def get_paged_routes(page_no):
+@token_required
+@admin_only
+def get_paged_routes(curr_user, page_no):
     paged_routes = Route.query.paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_routes:
@@ -252,7 +325,8 @@ def get_paged_routes(page_no):
     return jsonify({'error': 'paged routes cannot be found'}), 400
 
 @app.route('/api/vehicle/<int:vehicle_id>', methods=['GET'])
-def get_vehicle(vehicle_id):
+@token_required
+def get_vehicle(curr_user, vehicle_id):
     vehicle = Vehicle.query.get(vehicle_id)
 
     if vehicle:            
@@ -275,7 +349,8 @@ def get_vehicle(vehicle_id):
     return jsonify({'error': 'vehicle does not exist'}), 400
 
 @app.route('/api/vehicle/paged/<int:page_no>', methods=['GET'])
-def get_paged_vehicles(page_no):
+@token_required
+def get_paged_vehicles(curr_user, page_no):
     paged_vehicles = Vehicle.query.paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_vehicles:
@@ -303,7 +378,9 @@ def get_paged_vehicles(page_no):
     return jsonify({'error': 'paged vehicles cannot be found'}), 400
 
 @app.route('/api/parameter/<int:parameter_id>', methods=['GET'])
-def get_parameter(parameter_id):
+@token_required
+@admin_only
+def get_parameter(curr_user, parameter_id):
     parameter = Parameters.query.get(parameter_id)
 
     if parameter:
@@ -342,7 +419,9 @@ def get_parameter(parameter_id):
     return jsonify({'error': 'parameter does not exist'}), 400
 
 @app.route('/api/parameter/paged/<int:page_no>', methods=['GET'])
-def get_paged_parameters(page_no):
+@token_required
+@admin_only
+def get_paged_parameters(curr_user, page_no):
     paged_parameters = Parameters.query.paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_parameters:
@@ -372,7 +451,8 @@ def get_paged_parameters(page_no):
     return jsonify({'error': 'paged parameters cannot be found'}), 400
 
 @app.route('/api/vehicle/search/<int:page_no>', methods=['POST'])
-def search_vehicles(page_no):
+@token_required
+def search_vehicles(curr_user, page_no):
     vehicle_name = request.get_json()['vehicle_name']
     route_name = request.get_json()['route_name']
     date = request.get_json()['date']
@@ -426,7 +506,9 @@ def search_vehicles(page_no):
     return jsonify({'error': 'searched vehicles cannot be found'}), 400
 
 @app.route('/api/route/search/<int:page_no>', methods=['POST'])
-def search_routes(page_no):
+@token_required
+@admin_only
+def search_routes(curr_user, page_no):
     route_name = request.get_json()['route_name']
 
     route = Route.query.filter_by(name=route_name).first()
@@ -458,7 +540,9 @@ def search_routes(page_no):
     return jsonify({'error': 'searched routes cannot be found'}), 400
 
 @app.route('/api/parameter/search/<int:page_no>', methods=['POST'])
-def search_parameters(page_no):
+@token_required
+@admin_only
+def search_parameters(curr_user, page_no):
     parameter_name = request.get_json()['parameter_name']
 
     parameter = Parameters.query.filter_by(name=parameter_name).first()
@@ -493,7 +577,8 @@ def search_parameters(page_no):
     return jsonify({'error': 'paged parameters cannot be found'}), 400
 
 @app.route('/api/auto-complete/vehicle', methods=['POST'])
-def auto_complete_vehicle():
+@token_required
+def auto_complete_vehicle(curr_user):
     vehicle_name = request.get_json()['vehicle_name']
 
     search_vehicles = Vehicle.query.filter(Vehicle.name.ilike(f"%{vehicle_name}%")).with_entities(Vehicle.name).distinct().limit(QUERY_LIMIT).all()
@@ -513,7 +598,8 @@ def auto_complete_vehicle():
     return jsonify({'error': 'searched vehicles cannot be found'}), 400
 
 @app.route('/api/auto-complete/route', methods=['POST'])
-def auto_complete_route():
+@token_required
+def auto_complete_route(curr_user):
     route_name = request.get_json()['route_name']
 
     search_routes = Route.query.filter(Route.name.ilike(f"%{route_name}%")).limit(QUERY_LIMIT).all()
@@ -536,7 +622,9 @@ def auto_complete_route():
     return jsonify({'error': 'searched routes cannot be found'}), 400
 
 @app.route('/api/vehicle/analyze/<int:vehicle_id>', methods=['GET'])
-def analyze_vehicle(vehicle_id):
+@token_required
+@admin_only
+def analyze_vehicle(curr_user, vehicle_id):
     # query tables from db
     vehicle = Vehicle.query.get(vehicle_id)
     route = Route.query.get(vehicle.route_id)
@@ -623,7 +711,8 @@ def analyze_vehicle(vehicle_id):
     return jsonify({'msg': 'success'}), 200
 
 @app.route('/api/vehicle/analyze/distance/<int:id>', methods=['GET'])
-def get_distance_travelled(id):
+@token_required
+def get_distance_travelled(curr_user, id):
     distance = Distance.query.filter_by(analysis_id=id).first()
 
     if distance:
@@ -636,7 +725,8 @@ def get_distance_travelled(id):
     return jsonify({'error': 'distance does not exist'}), 400
 
 @app.route('/api/vehicle/analyze/loop/<int:id>', methods=['GET'])
-def get_loops(id):
+@token_required
+def get_loops(curr_user, id):
     loops = Loops.query.filter_by(analysis_id=id).first()
 
     if loops:
@@ -649,7 +739,8 @@ def get_loops(id):
     return jsonify({'error': 'loops does not exist'}), 400
 
 @app.route('/api/vehicle/analyze/speeding/<int:id>', methods=['GET'])
-def get_speeding_violations(id):
+@token_required
+def get_speeding_violations(curr_user, id):
     violations = Speeding.query.filter_by(analysis_id=id).all()
 
     if violations:
@@ -681,7 +772,8 @@ def get_speeding_violations(id):
     return jsonify({'error': 'speeding does not exist'}), 400
 
 @app.route('/api/vehicle/analyze/stop/<int:id>', methods=['GET'])
-def get_stop_violations(id):
+@token_required
+def get_stop_violations(curr_user, id):
     violations = Stops.query.filter_by(analysis_id=id).all()
 
     if violations:
@@ -712,7 +804,8 @@ def get_stop_violations(id):
     return jsonify({'error': 'stops does not exist'}), 400
 
 @app.route('/api/vehicle/analyze/liveness/<int:id>', methods=['GET'])
-def get_liveness(id):
+@token_required
+def get_liveness(curr_user, id):
     analysis = Analysis.query.get(id)
 
     if analysis:
@@ -740,7 +833,9 @@ def get_liveness(id):
     return jsonify({'error': 'liveness does not exist'}), 400
 
 @app.route('/api/admin/cutofftime', methods=['GET'])
-def get_cutofftime():
+@token_required
+@admin_only
+def get_cutofftime(curr_user):
     cut_off_time = GPSCutoffTime.query.first()
 
     if cut_off_time:
@@ -753,7 +848,9 @@ def get_cutofftime():
     return jsonify({'error': 'cut off time not set'}), 400
 
 @app.route('/api/admin/cutofftime', methods=['PUT'])
-def set_cutofftime():
+@token_required
+@admin_only
+def set_cutofftime(curr_user):
     time = request.get_json()['cut_off_time']
     cut_off_time = GPSCutoffTime.query.first()
 
@@ -774,7 +871,9 @@ def set_cutofftime():
     return jsonify(data), 200
 
 @app.route('/api/admin/northboundkey', methods=['GET'])
-def get_northbound_key():
+@token_required
+@admin_only
+def get_northbound_key(curr_user):
     config_file = open(CONFIG_FILE_PATH, 'r')
     lines = config_file.readlines()
 
@@ -795,7 +894,9 @@ def get_northbound_key():
     return jsonify({'northbound_url': northbound_url, 'northbound_username': northbound_username, 'northbound_password': northbound_password}), 200
 
 @app.route('/api/admin/northboundkey', methods=['PUT'])
-def set_northbound_key():
+@token_required
+@admin_only
+def set_northbound_key(curr_user):
     new_url = request.get_json()['url']
     new_username = request.get_json()['username']
     new_password = request.get_json()['password']
@@ -824,7 +925,9 @@ def set_northbound_key():
     return jsonify({'new_url': new_url, 'new_username': new_username, 'new_password': new_password}), 200
 
 @app.route('/api/northbound/token', methods=['GET'])
-def northbound_connect():
+@token_required
+@admin_only
+def northbound_connect(curr_user):
     config_file = open(CONFIG_FILE_PATH, 'r')
     lines = config_file.readlines()
 
@@ -848,7 +951,9 @@ def northbound_connect():
     return jsonify({'error': 'Cannot login to Northbound API'})
 
 @app.route('/api/route/refresh', methods=['PUT'])
-def route_refresh():
+@token_required
+@admin_only
+def route_refresh(curr_user):
     list_of_routes = request.get_json()['routes']
     
     for route in list_of_routes:
@@ -890,7 +995,9 @@ def route_refresh():
     return jsonify({'error': 'paged routes cannot be found'}), 200
 
 @app.route('/api/parameter/refresh', methods=['PUT'])
-def parameter_refresh():
+@token_required
+@admin_only
+def parameter_refresh(curr_user):
     list_of_routes = request.get_json()['routes']
 
     for route in list_of_routes:
