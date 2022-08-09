@@ -162,7 +162,7 @@ def create_vehicle(curr_user):
     route = Route.query.filter_by(name=route_name).first()
 
     if gpx_file and route and is_gpx_file(filename):
-        gpx_file.save(os.path.join(app.config['GPX_VEHICLE_FOLDER'], filename))
+        res = s3.put_object(Body=gpx_file.read(), Bucket=VEHICLE_BUCKET, Key=filename)
 
         vehicle = Vehicle(filename, vehicle_name, route.id)
         db.session.add(vehicle)
