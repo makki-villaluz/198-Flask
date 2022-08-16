@@ -7,11 +7,13 @@ class User(db.Model):
     username = db.Column(db.String(60), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     admin = db.Column(db.Boolean, nullable=False)
+    routes = db.Column(db.String(1000))
 
     def __init__(self, username, password, admin=False):
         self.username = username
         self.password = generate_password_hash(password, method='sha256')
         self.admin = admin
+        self.routes = routes
 
     def __repr__(self):
         return f"User('{self.id}','{self.username}','{self.admin}')"
