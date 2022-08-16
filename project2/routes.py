@@ -1042,3 +1042,154 @@ def parameter_refresh(curr_user):
         }), 200
     
     return jsonify({'error': 'paged parameters cannot be found'}), 400
+
+@app.route('/api/admin/account', methods=['POST'])
+@token_required
+@admin_only
+def create_account(curr_user):
+    username = request.get_json()['username']
+    password = request.get_json()['password']
+    routes = request.get_json()['routes']
+
+    account = User.query.filter_by(username=username).first()
+
+    if not account:
+        account = User(username, password, False, routes)
+        db.session.add(account)
+        db.session.commit()
+
+        paged_accounts = User.query.filter_by(admin=False).paginate(page=1, per_page=PER_PAGE)
+        data = []
+
+        for account in paged_accounts.items:
+            account_data = {
+                'id': account.id,
+                'username': account.username,
+                'routes': account.routes.split(',')
+            }
+
+            data.append(account_data)
+
+        return jsonify({
+            'accounts': data,
+            'total_rows': paged_accounts.total,
+            'per_page': paged_accounts.per_page,
+            'curr_page': paged_accounts.page
+        }), 200
+
+    return jsonify({'error': 'user entry creation failed'}), 400
+
+@app.route('/api/admin/account/paged/<int:page_no>', methods=['GET'])
+@token_required
+@admin_only
+def get_paged_accounts(curr_user, page_no):
+    paged_accounts = User.query.filter_by(admin=False).paginate(page=page_no, per_page=PER_PAGE)
+
+    if paged_accounts:
+        data = []
+
+        for account in paged_accounts.items:
+            account_data = {
+                'id': account.id,
+                'username': account.username,
+                'routes': account.routes.split(',')
+            }
+
+            data.append(account_data)
+
+        return jsonify({
+            'accounts': data,
+            'total_rows': paged_accounts.total,
+            'per_page': paged_accounts.per_page,
+            'curr_page': paged_accounts.page
+        }), 200
+    
+    return jsonify({'error': 'paged accounts cannot be found'}), 400
+
+@app.route('/api/admin/account/<int:account_id>', methods=['PUT'])
+@token_required
+@admin_only
+def update_account(curr_user, account_id):
+    routes = request.get_json()['routes']
+
+    account = User.query.get(account_id)
+
+    if account:
+        account.routes = routes
+
+        db.session.commit()
+
+        paged_accounts = User.query.filter_by(admin=False).paginate(page=1, per_page=PER_PAGE)
+        data = []
+
+        for account in paged_accounts.items:
+            account_data = {
+                'id': account.id,
+                'username': account.username,
+                'routes': account.routes.split(',')
+            }
+
+            data.append(account_data)
+
+        return jsonify({
+            'accounts': data,
+            'total_rows': paged_accounts.total,
+            'per_page': paged_accounts.per_page,
+            'curr_page': paged_accounts.page
+        }), 200
+
+    return jsonify({'error': 'user does not exist'}), 400
+
+@app.route('/api/admin/account/search/<int:page_no>', methods=['POST'])
+@token_required
+@admin_only
+def search_account(curr_user, page_no):
+    username = request.get_json()['username']
+
+    account = User.query.filter_by(username=username).first()
+
+    if account:
+        data = {
+            'id': account.id,
+            'username': account.username,
+            'routes': account.routes.split(',')
+        }
+
+        return jsonify({
+            'accounts': [data],
+            'total_rows': 0,
+            'per_page': PER_PAGE,
+            'curr_page': 1
+        }), 200
+
+    elif route == None:
+        return jsonify({
+            'accounts': [], 
+            'total_rows': 0, 
+            'per_page': PER_PAGE, 
+            'curr_page': 1
+        }), 200
+
+    return jsonify({'error': 'searched accounts cannot be found'}), 400
+
+@app.route('/api/auto-complete/account', methods=['POST'])
+@token_required
+@admin_only
+def auto_complete_account(curr_user):
+    username= request.get_json()['username']
+
+    search_accounts = User.query.filter_by(admin=False).filter(User.username.ilike(f"%{username}%")).with_entities(User.username).distinct().limit(QUERY_LIMIT).all()
+
+    if len(search_accounts):
+        search_accounts = np.squeeze(np.array(search_accounts), axis=1)
+
+        return jsonify({
+            'accounts': search_accounts.tolist()
+        }), 200
+
+    elif len(search_accounts) == 0:
+        return jsonify({
+            'accounts': []
+        }), 200
+
+    return jsonify({'error': 'searched accounts cannot be found'}), 400
