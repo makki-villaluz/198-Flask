@@ -742,10 +742,10 @@ def get_loops(curr_user, id):
 @app.route('/api/vehicle/analyze/speeding/<int:id>', methods=['GET'])
 @token_required
 def get_speeding_violations(curr_user, id):
-    violations = Speeding.query.filter_by(analysis_id=id).all()
+    analysis = Analysis.query.get(id)
 
-    if violations:
-        analysis = Analysis.query.get(id)
+    if analysis:
+        violations = Speeding.query.filter_by(analysis_id=id).all()
         vehicle = Vehicle.query.get(analysis.vehicle_id)
         route = Route.query.get(vehicle.route_id)
 
@@ -755,19 +755,21 @@ def get_speeding_violations(curr_user, id):
             'violations': []
         }
 
-        for violation in violations:
-            temp = {
-                'duration': violation.duration,
-                'lat1': violation.lat1,
-                'long1': violation.long1,
-                'lat2': violation.lat2,
-                'long2': violation.long2,
-                'time1': violation.time1,
-                'time2': violation.time2,
-            }
-            data['violations'].append(temp)
+        if violations:
+            for violation in violations:
+                temp = {
+                    'duration': violation.duration,
+                    'lat1': violation.lat1,
+                    'long1': violation.long1,
+                    'lat2': violation.lat2,
+                    'long2': violation.long2,
+                    'time1': violation.time1,
+                    'time2': violation.time2,
+                }
+                data['violations'].append(temp)
 
-        
+            return jsonify(data), 200
+
         return jsonify(data), 200
 
     return jsonify({'error': 'speeding does not exist'}), 400
@@ -775,10 +777,10 @@ def get_speeding_violations(curr_user, id):
 @app.route('/api/vehicle/analyze/stop/<int:id>', methods=['GET'])
 @token_required
 def get_stop_violations(curr_user, id):
-    violations = Stops.query.filter_by(analysis_id=id).all()
+    analysis = Analysis.query.get(id)
 
-    if violations:
-        analysis = Analysis.query.get(id)
+    if analysis:
+        violations = Stops.query.filter_by(analysis_id=id).all()
         vehicle = Vehicle.query.get(analysis.vehicle_id)
         route = Route.query.get(vehicle.route_id)
 
@@ -788,17 +790,20 @@ def get_stop_violations(curr_user, id):
             'violations': []
         }
 
-        for violation in violations:
-            temp = {
-                'duration': violation.duration,
-                'violation': violation.violation,
-                'time1': violation.time1,
-                'time2': violation.time2,
-                'center_lat': violation.center_lat,
-                'center_long': violation.center_long,
-            }
+        if violations:
+            for violation in violations:
+                temp = {
+                    'duration': violation.duration,
+                    'violation': violation.violation,
+                    'time1': violation.time1,
+                    'time2': violation.time2,
+                    'center_lat': violation.center_lat,
+                    'center_long': violation.center_long,
+                }
 
-            data['violations'].append(temp)
+                data['violations'].append(temp)
+
+            return jsonify(data), 200
 
         return jsonify(data), 200
 
