@@ -111,7 +111,7 @@ def create_route(curr_user):
 
         data = {
             'id': route.id,
-            'name': route.name,
+            'route_name': route.name,
             'ref_filename': json.dumps(None),
             'stop_filename': json.dumps(None),
             'date_uploaded': json.dumps(None)
@@ -136,7 +136,7 @@ def create_parameters(curr_user):
 
         data = {
             'id': parameters.id,
-            'name': parameters.name,
+            'route_name': parameters.name,
             'cell_size': json.dumps(None),
             'stop_min_time': json.dumps(None),
             'stop_max_time': json.dumps(None),
@@ -164,13 +164,13 @@ def create_vehicle(curr_user):
     if gpx_file and route and is_gpx_file(filename):
         res = s3.put_object(Body=gpx_file.read(), Bucket=VEHICLE_BUCKET, Key=filename)
 
-        vehicle = Vehicle(filename, vehicle_name, route.id)
+        vehicle = Vehicle(filename, vehicle_name, route.id, route_name)
         db.session.add(vehicle)
         db.session.commit()
 
         data = {
             'id': vehicle.id,
-            'name': vehicle.name,
+            'vehicle_name': vehicle.name,
             'filename': vehicle.filename,
             'date_uploaded': vehicle.date_uploaded,
             'route_id': vehicle.route_id
@@ -212,7 +212,7 @@ def update_route(curr_user, route_id):
 
         data = {
             'id': route.id,
-            'name': route.name,
+            'route_name': route.name,
             'ref_filename': route.ref_filename,
             'stop_filename': route.stop_filename,
             'date_uploaded': route.date_uploaded.strftime("%b %d, %Y")
@@ -247,7 +247,7 @@ def update_parameters(curr_user, parameters_id):
 
         data = {
             'id': parameters.id,
-            'name': parameters.name,
+            'route_name': parameters.name,
             'cell_size': parameters.cell_size,
             'stop_min_time': parameters.stop_min_time,
             'stop_max_time': parameters.stop_max_time,
@@ -270,7 +270,7 @@ def get_route(curr_user, route_id):
     if route: 
         data = {
             'id': route.id,
-            'name': route.name,
+            'route_name': route.name,
             'geojson': json.dumps(None),
             'polygon': json.dumps(None),
             'ref_filename': json.dumps(None),
@@ -307,7 +307,7 @@ def get_paged_routes(curr_user, page_no):
         for route in paged_routes.items:
             route_data = {
                 'id': route.id,
-                'name': route.name,
+                'route_name': route.name,
                 'ref_filename': route.ref_filename if route.ref_filename else json.dumps(None),
                 'stop_filename': route.stop_filename if route.stop_filename else json.dumps(None),
                 'date_uploaded': route.date_uploaded.strftime("%b %d, %Y") if route.date_uploaded else json.dumps(None)
@@ -336,10 +336,11 @@ def get_vehicle(curr_user, vehicle_id):
 
         data = {
             'id': vehicle.id,
-            'name': vehicle.name,
+            'vehicle_name': vehicle.name,
             'filename': vehicle.filename,
             'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y"),
             'route_id': vehicle.route_id,
+            'route_name': vehicle.route_name,
             'analysis_id': vehicle.analysis.id if vehicle.analysis else json.dumps(None),
             'geojson': geojson
         }
@@ -361,9 +362,9 @@ def get_paged_vehicles(curr_user, page_no):
 
             vehicle_data = {
                 'id': vehicle.id,
-                'name': vehicle.name,
+                'vehicle_name': vehicle.name,
                 'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y"),
-                'route_name': route.name
+                'route_name': vehicle.route_name
             }
 
             data.append(vehicle_data)
@@ -388,7 +389,7 @@ def get_parameter(curr_user, parameter_id):
 
         data = {
             'id': parameter.id,
-            'name': parameter.name,
+            'route_name': parameter.name,
             'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
             'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
             'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
@@ -430,7 +431,7 @@ def get_paged_parameters(curr_user, page_no):
         for parameter in paged_parameters.items:
             parameter_data = {
                 'id': parameter.id,
-                'name': parameter.name,
+                'route_name': parameter.name,
                 'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
                 'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
                 'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
@@ -489,7 +490,7 @@ def search_vehicles(curr_user, page_no):
 
             vehicle_data = {
                 'id': vehicle.id,
-                'name': vehicle.name,
+                'vehicle_name': vehicle.name,
                 'date_uploaded': vehicle.date_uploaded.strftime("%b %d, %Y"),
                 'route_name': route.name
             }
@@ -516,7 +517,7 @@ def search_routes(curr_user, page_no):
     if route:
         data = {
             'id': route.id,
-            'name': route.name,
+            'route_name': route.name,
             'ref_filename': route.ref_filename if route.ref_filename else json.dumps(None),
             'stop_filename': route.stop_filename if route.stop_filename else json.dumps(None),
             'date_uploaded': route.date_uploaded.strftime("%b %d, %Y") if route.date_uploaded else json.dumps(None)
@@ -550,7 +551,7 @@ def search_parameters(curr_user, page_no):
     if parameter:
         data = {
             'id': parameter.id,
-            'name': parameter.name,
+            'route_name': parameter.name,
             'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
             'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
             'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),

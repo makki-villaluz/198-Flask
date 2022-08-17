@@ -39,15 +39,17 @@ class Vehicle(db.Model):
     filename = db.Column(db.String(60), unique=True, nullable=False)
     date_uploaded = db.Column(db.Date, default=datetime.date.today(), nullable=False)
     route_id = db.Column(db.Integer, db.ForeignKey('route.id'))
+    route_name = db.Column(db.String(60), nullable=False)
     analysis = db.relationship('Analysis', backref='vehicle', lazy='select', uselist=False)
 
-    def __init__(self, filename, name, route_id):
+    def __init__(self, filename, name, route_id, route_name):
         self.filename = filename
         self.name = name
         self.route_id = route_id
+        self.route_name = route_name
 
     def __repr__(self):
-        return f"Vehicle('{self.id}', '{self.filename}','{self.vehicle_id}','{self.date_uploaded}','{self.route_id}')"
+        return f"Vehicle('{self.id}','{self.name}','{self.filename}','{self.date_uploaded}','{self.route_id}','{self.route_name}')"
 
 class Parameters(db.Model):
     id = db.Column(db.Integer, primary_key=True)
