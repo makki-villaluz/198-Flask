@@ -9,14 +9,14 @@ class User(db.Model):
     admin = db.Column(db.Boolean, nullable=False)
     routes = db.Column(db.String(1000))
 
-    def __init__(self, username, password, admin=False):
+    def __init__(self, username, password, admin=False, routes=""):
         self.username = username
         self.password = generate_password_hash(password, method='sha256')
         self.admin = admin
         self.routes = routes
 
     def __repr__(self):
-        return f"User('{self.id}','{self.username}','{self.admin}')"
+        return f"User('{self.id}','{self.username}','{self.admin}','{self.routes}')"
 
 class Route(db.Model):
     id = db.Column(db.Integer, primary_key=True)
