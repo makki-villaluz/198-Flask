@@ -359,8 +359,6 @@ def get_paged_vehicles(curr_user, page_no):
         data = []
 
         for vehicle in paged_vehicles.items:
-            route = Route.query.get(vehicle.route_id)
-
             vehicle_data = {
                 'id': vehicle.id,
                 'vehicle_name': vehicle.name,
