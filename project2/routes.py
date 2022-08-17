@@ -353,7 +353,10 @@ def get_vehicle(curr_user, vehicle_id):
 @app.route('/api/vehicle/paged/<int:page_no>', methods=['GET'])
 @token_required
 def get_paged_vehicles(curr_user, page_no):
-    paged_vehicles = Vehicle.query.paginate(page=page_no, per_page=PER_PAGE)
+    if curr_user.admin:
+        paged_vehicles = Vehicle.query.paginate(page=page_no, per_page=PER_PAGE)
+    else:
+        paged_vehicles = Vehicle.query.filter(Vehicle.route_name.in_(curr_user.routes.split(','))).paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_vehicles:
         data = []
@@ -581,7 +584,10 @@ def search_parameters(curr_user, page_no):
 def auto_complete_vehicle(curr_user):
     vehicle_name = request.get_json()['vehicle_name']
 
-    search_vehicles = Vehicle.query.filter(Vehicle.name.ilike(f"%{vehicle_name}%")).with_entities(Vehicle.name).distinct().limit(QUERY_LIMIT).all()
+    if curr_user.admin:
+        search_vehicles = Vehicle.query.filter(Vehicle.name.ilike(f"%{vehicle_name}%")).with_entities(Vehicle.name).distinct().limit(QUERY_LIMIT).all()
+    else:
+        search_vehicles = Vehicle.query.filter(Vehicle.route_name.in_(curr_user.routes.split(','))).filter(Vehicle.name.ilike(f"%{vehicle_name}%")).with_entities(Vehicle.name).distinct().limit(QUERY_LIMIT).all()
 
     if len(search_vehicles):
         search_vehicles = np.squeeze(np.array(search_vehicles), axis=1)
@@ -602,7 +608,10 @@ def auto_complete_vehicle(curr_user):
 def auto_complete_route(curr_user):
     route_name = request.get_json()['route_name']
 
-    search_routes = Route.query.filter(Route.name.ilike(f"%{route_name}%")).limit(QUERY_LIMIT).all()
+    if curr_user.admin:
+        search_routes = Route.query.filter(Route.name.ilike(f"%{route_name}%")).limit(QUERY_LIMIT).all()
+    else:
+        search_routes = Route.query.filter(Route.name.in_(curr_user.routes.split(','))).filter(Route.name.ilike(f"%{route_name}%")).limit(QUERY_LIMIT).all()
 
     if search_routes:
         data = []
