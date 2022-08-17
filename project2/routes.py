@@ -173,7 +173,8 @@ def create_vehicle(curr_user):
             'vehicle_name': vehicle.name,
             'filename': vehicle.filename,
             'date_uploaded': vehicle.date_uploaded,
-            'route_id': vehicle.route_id
+            'route_id': vehicle.route_id,
+            'route_name': vehicle.route_name
         }
 
         return jsonify(data), 201
