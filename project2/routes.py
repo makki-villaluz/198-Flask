@@ -12,7 +12,7 @@ from flask import request, jsonify, send_file, current_app
 from flask_cors import CORS
 from project2 import app, db
 from project2.models import User, Vehicle, Route, Parameters, Analysis, Distance, Loops, Speeding, Stops, Liveness, GPSCutoffTime
-from project2.api import parse_gpx_file, compute_distance_travelled, compute_speed_violation, compute_stop_violation, compute_liveness, generate_grid_fence, generate_path, route_check, is_gpx_file, is_csv_file, create_geojson_feature, csv_to_gpx_stops, generate_corner_pts, parse_gpx_waypoints, Point, compute_loops
+from project2.api import parse_gpx_file, compute_distance_travelled, compute_speed_violation, compute_stop_violation, compute_liveness, generate_grid_fence, generate_path, route_check, is_gpx_file, is_csv_file, create_geojson_feature, csv_to_gpx_stops, generate_corner_pts, parse_gpx_waypoints, Point, compute_vehicle_info
 
 PER_PAGE = 8
 QUERY_LIMIT = 7
@@ -159,14 +159,47 @@ def create_vehicle(curr_user):
     gpx_file = request.files['gpx_file']
     filename = gpx_file.filename
 
+    # check and add route, parameter if it doesn't exist
     route = Route.query.filter_by(name=route_name).first()
+    if not route:
+        route = Route(route_name)
+        db.session.add(route)
+        db.session.commit()
 
-    if gpx_file and route and is_gpx_file(filename):
+        parameters = Parameters(route_name, route.id)
+        db.session.add(parameters)
+        db.session.commit()
+
+    # check if gpx_file is valid and add vehicle, analysis
+    if gpx_file and is_gpx_file(filename):
         res = s3.put_object(Body=gpx_file.read(), Bucket=VEHICLE_BUCKET, Key=filename)
 
         vehicle = Vehicle(filename, vehicle_name, route.id, route_name)
         db.session.add(vehicle)
         db.session.commit()
+
+        analysis = Analysis(vehicle.id)
+        db.session.add(analysis)
+        db.session.commit()
+
+        gpx_file = s3.get_object(Bucket=VEHICLE_BUCKET, Key=vehicle.filename)['Body'].read()
+        gps_data_vehicle = parse_gpx_file(gpx_file)
+
+        # compute distance
+        distance = compute_distance_travelled(gps_data_vehicle)
+        distance_record = Distance(distance, vehicle.analysis.id)
+        db.session.add(distance_record)
+        db.session.commit()
+
+        # check and analyze vehicle if ref_file, stop_file, and parameter data are available
+        if route.parameters.cell_size and route.ref_filename:
+            gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.ref_filename)['Body'].read()
+            gps_data_route = parse_gpx_file(gpx_file)
+
+            gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.stop_filename)['Body'].read()
+            stops = parse_gpx_waypoints(gpx_file)
+
+            compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops)
 
         data = {
             'id': vehicle.id,
@@ -630,95 +663,6 @@ def auto_complete_route(curr_user):
 
     return jsonify({'error': 'searched routes cannot be found'}), 400
 
-@app.route('/api/vehicle/analyze/<int:vehicle_id>', methods=['GET'])
-@token_required
-@admin_only
-def analyze_vehicle(curr_user, vehicle_id):
-    # query tables from db
-    vehicle = Vehicle.query.get(vehicle_id)
-    route = Route.query.get(vehicle.route_id)
-
-    if vehicle.analysis == None:
-        analysis = Analysis(vehicle.id)
-
-        db.session.add(analysis)
-        db.session.commit()        
-
-    # read gpx files from file system
-    gpx_file = s3.get_object(Bucket=VEHICLE_BUCKET, Key=vehicle.filename)['Body'].read()
-    gps_data_vehicle = parse_gpx_file(gpx_file)
-
-    gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.ref_filename)['Body'].read()
-    gps_data_route = parse_gpx_file(gpx_file)
-
-    gpx_file = s3.get_object(Bucket=ROUTE_BUCKET, Key=route.stop_filename)['Body'].read()
-    stops = parse_gpx_waypoints(gpx_file)
-
-    # compute distance
-    distance = compute_distance_travelled(gps_data_vehicle)
-
-    if vehicle.analysis.distance:
-        vehicle.analysis.distance.distance = distance
-    else:
-        distance_record = Distance(distance, vehicle.analysis.id)
-        db.session.add(distance_record)
-
-    db.session.commit()
-
-    # compute loops
-    point1, point2 = generate_corner_pts(gps_data_vehicle, route.parameters.cell_size)
-    grid_fence = generate_grid_fence(point1, point2, route.parameters.cell_size)
-    vehicle_path = generate_path(gps_data_vehicle, grid_fence)
-    route_path = generate_path(gps_data_route, grid_fence)
-    loops = compute_loops(route_path, vehicle_path, grid_fence)
-
-    if vehicle.analysis.loops:
-        vehicle.analysis.loops.loops = loops
-    else:
-        loops_record = Loops(loops, vehicle.analysis.id)
-        db.session.add(loops_record)
-
-    db.session.commit()
-
-    # compute speeding
-    speeding_violations = compute_speed_violation(gps_data_vehicle, "Explicit", route.parameters.speeding_speed_limit, route.parameters.speeding_time_limit)
-
-    if vehicle.analysis.speeding:
-        Speeding.query.filter_by(analysis_id=vehicle.analysis.id).delete()
-    
-    for violation in speeding_violations:
-        speeding = Speeding(violation['duration'], violation['time1'], violation['time2'], violation['lat1'], violation['long1'], violation['lat2'], violation['long2'], vehicle.analysis.id)
-        db.session.add(speeding)
-        
-    db.session.commit()
-
-    # compute stop
-    stop_violations = compute_stop_violation(stops, gps_data_vehicle, route.parameters.stop_min_time, route.parameters.stop_max_time)
-
-    if vehicle.analysis.stops:
-        Stops.query.filter_by(analysis_id=vehicle.analysis.id).delete()
-
-    for violation in stop_violations:
-        stop = Stops(violation['violation'], violation['duration'], violation['time1'], violation['time2'], violation['center_lat'], violation['center_long'], vehicle.analysis.id)
-        db.session.add(stop)
-
-    db.session.commit()
-
-    # compute liveness
-    liveness = compute_liveness(gps_data_vehicle, route.parameters.liveness_time_limit)
-
-    if vehicle.analysis.liveness_segments:
-        Liveness.query.filter_by(analysis_id=vehicle.analysis.id).delete()
-
-    vehicle.analysis.total_liveness = liveness['total_liveness']
-    for segment in liveness['segments']:
-        liveness_segment = Liveness(segment['liveness'], segment['time1'], segment['time2'], vehicle.analysis.id)
-        db.session.add(liveness_segment)
-
-    db.session.commit()
-
-    return jsonify({'msg': 'success'}), 200
-
 @app.route('/api/vehicle/analyze/distance/<int:id>', methods=['GET'])
 @token_required
 def get_distance_travelled(curr_user, id):
@@ -750,11 +694,10 @@ def get_loops(curr_user, id):
 @app.route('/api/vehicle/analyze/speeding/<int:id>', methods=['GET'])
 @token_required
 def get_speeding_violations(curr_user, id):
-    analysis = Analysis.query.get(id)
+    violations = Speeding.query.filter_by(analysis_id=id).all()
 
-    if analysis:
-        violations = Speeding.query.filter_by(analysis_id=id).all()
-        vehicle = Vehicle.query.get(analysis.vehicle_id)
+    if violations:
+        vehicle = Vehicle.query.get(id)
         route = Route.query.get(vehicle.route_id)
 
         data = {
@@ -763,20 +706,17 @@ def get_speeding_violations(curr_user, id):
             'violations': []
         }
 
-        if violations:
-            for violation in violations:
-                temp = {
-                    'duration': violation.duration,
-                    'lat1': violation.lat1,
-                    'long1': violation.long1,
-                    'lat2': violation.lat2,
-                    'long2': violation.long2,
-                    'time1': violation.time1,
-                    'time2': violation.time2,
-                }
-                data['violations'].append(temp)
-
-            return jsonify(data), 200
+        for violation in violations:
+            temp = {
+                'duration': violation.duration,
+                'lat1': violation.lat1,
+                'long1': violation.long1,
+                'lat2': violation.lat2,
+                'long2': violation.long2,
+                'time1': violation.time1,
+                'time2': violation.time2,
+            }
+            data['violations'].append(temp)
 
         return jsonify(data), 200
 
@@ -785,11 +725,10 @@ def get_speeding_violations(curr_user, id):
 @app.route('/api/vehicle/analyze/stop/<int:id>', methods=['GET'])
 @token_required
 def get_stop_violations(curr_user, id):
-    analysis = Analysis.query.get(id)
+    violations = Stops.query.filter_by(analysis_id=id).all()
 
-    if analysis:
-        violations = Stops.query.filter_by(analysis_id=id).all()
-        vehicle = Vehicle.query.get(analysis.vehicle_id)
+    if violations:
+        vehicle = Vehicle.query.get(id)
         route = Route.query.get(vehicle.route_id)
 
         data = {
@@ -798,20 +737,17 @@ def get_stop_violations(curr_user, id):
             'violations': []
         }
 
-        if violations:
-            for violation in violations:
-                temp = {
-                    'duration': violation.duration,
-                    'violation': violation.violation,
-                    'time1': violation.time1,
-                    'time2': violation.time2,
-                    'center_lat': violation.center_lat,
-                    'center_long': violation.center_long,
-                }
+        for violation in violations:
+            temp = {
+                'duration': violation.duration,
+                'violation': violation.violation,
+                'time1': violation.time1,
+                'time2': violation.time2,
+                'center_lat': violation.center_lat,
+                'center_long': violation.center_long,
+            }
 
-                data['violations'].append(temp)
-
-            return jsonify(data), 200
+            data['violations'].append(temp)
 
         return jsonify(data), 200
 
@@ -820,29 +756,28 @@ def get_stop_violations(curr_user, id):
 @app.route('/api/vehicle/analyze/liveness/<int:id>', methods=['GET'])
 @token_required
 def get_liveness(curr_user, id):
-    analysis = Analysis.query.get(id)
+    liveness_segments = Liveness.query.filter_by(analysis_id=id).all()
 
-    if analysis:
-        vehicle = Vehicle.query.get(analysis.vehicle_id)
+    if liveness_segments:
+        vehicle = Vehicle.query.get(id)
         route = Route.query.get(vehicle.route_id)
 
-        if analysis.liveness_segments:
-            data = {
-                'total_liveness': analysis.total_liveness,
-                'time_limit': route.parameters.liveness_time_limit,
-                'segments': []
+        data = {
+            'total_liveness': vehicle.analysis.total_liveness,
+            'time_limit': route.parameters.liveness_time_limit,
+            'segments': []
+        }
+
+        for segment in liveness_segments:
+            temp = {
+                'liveness': segment.liveness,
+                'time1': segment.time1,
+                'time2': segment.time2
             }
 
-            for segment in analysis.liveness_segments:
-                temp = {
-                    'liveness': segment.liveness,
-                    'time1': segment.time1,
-                    'time2': segment.time2
-                }
+            data['segments'].append(temp)
 
-                data['segments'].append(temp)
-
-            return jsonify(data), 200
+        return jsonify(data), 200
 
     return jsonify({'error': 'liveness does not exist'}), 400
 
