@@ -698,11 +698,10 @@ def get_speeding_violations(curr_user, id):
 
     if violations:
         vehicle = Vehicle.query.get(id)
-        route = Route.query.get(vehicle.route_id)
 
         data = {
-            'time_limit': route.parameters.speeding_time_limit,
-            'speed_limit': route.parameters.speeding_speed_limit,
+            'time_limit': vehicle.analysis.speeding_time_limit,
+            'speed_limit': vehicle.analysis.speeding_speed_limit,
             'violations': []
         }
 
@@ -729,11 +728,10 @@ def get_stop_violations(curr_user, id):
 
     if violations:
         vehicle = Vehicle.query.get(id)
-        route = Route.query.get(vehicle.route_id)
 
         data = {
-            'min_time': route.parameters.stop_min_time,
-            'max_time': route.parameters.stop_max_time,
+            'min_time': vehicle.analysis.stop_min_time,
+            'max_time': vehicle.analysis.stop_max_time,
             'violations': []
         }
 
@@ -760,11 +758,10 @@ def get_liveness(curr_user, id):
 
     if liveness_segments:
         vehicle = Vehicle.query.get(id)
-        route = Route.query.get(vehicle.route_id)
 
         data = {
             'total_liveness': vehicle.analysis.total_liveness,
-            'time_limit': route.parameters.liveness_time_limit,
+            'time_limit': vehicle.analysis.liveness_time_limit,
             'segments': []
         }
 
