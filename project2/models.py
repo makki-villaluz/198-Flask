@@ -77,6 +77,12 @@ class Analysis(db.Model):
     speeding = db.relationship('Speeding', backref='analysis')
     stops = db.relationship('Stops', backref='analysis')
     total_liveness = db.Column(db.Integer, default=None, nullable=True)
+    cell_size = db.Column(db.Float, default=None, nullable=True)
+    stop_min_time = db.Column(db.Integer, default=None, nullable=True)
+    stop_max_time = db.Column(db.Integer, default=None, nullable=True)
+    speeding_time_limit = db.Column(db.Integer, default=None, nullable=True)
+    speeding_speed_limit = db.Column(db.Integer, default=None, nullable=True)
+    liveness_time_limit = db.Column(db.Integer, default=None, nullable=True)
     liveness_segments = db.relationship('Liveness', backref='analysis', lazy='select')
 
     def __init__(self, vehicle_id):
