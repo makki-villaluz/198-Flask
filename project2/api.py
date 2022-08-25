@@ -1,4 +1,7 @@
+from project2.models import Vehicle, Route, Parameters, Analysis, Distance, Loops, Speeding, Stops, Liveness
+from project2 import db
 from haversine import haversine
+from datetime import datetime
 import gpxpy
 import gpxpy.gpx
 
@@ -488,3 +491,46 @@ def find_current_index(cell, route_list):
         if route_list[i] == cell:
             return i
     return -1
+
+def compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops):
+    # compute loops
+    point1, point2 = generate_corner_pts(gps_data_vehicle, route.parameters.cell_size)
+    grid_fence = generate_grid_fence(point1, point2, route.parameters.cell_size)
+    vehicle_path = generate_path(gps_data_vehicle, grid_fence)
+    route_path = generate_path(gps_data_route, grid_fence)
+    loops = compute_loops(route_path, vehicle_path, grid_fence)
+
+    loops_record = Loops(loops, vehicle.analysis.id)
+    db.session.add(loops_record)
+
+    # compute speeding
+    speeding_violations = compute_speed_violation(gps_data_vehicle, "Explicit", route.parameters.speeding_speed_limit, route.parameters.speeding_time_limit)
+
+    if not speeding_violations:
+        speeding = Speeding(0, datetime.fromtimestamp(0), datetime.fromtimestamp(0), 0, 0, 0, 0, vehicle.analysis.id)
+        db.session.add(speeding)
+    else:
+        for violation in speeding_violations:
+            speeding = Speeding(violation['duration'], violation['time1'], violation['time2'], violation['lat1'], violation['long1'], violation['lat2'], violation['long2'], vehicle.analysis.id)
+            db.session.add(speeding)
+
+    # compute stop
+    stop_violations = compute_stop_violation(stops, gps_data_vehicle, route.parameters.stop_min_time, route.parameters.stop_max_time)
+
+    if not stop_violations:
+        stop = Stops('no violation', 0, datetime.fromtimestamp(0), datetime.fromtimestamp(0), 0, 0, vehicle.analysis.id)
+        db.session.add(stop)
+    else:
+        for violation in stop_violations:
+            stop = Stops(violation['violation'], violation['duration'], violation['time1'], violation['time2'], violation['center_lat'], violation['center_long'], vehicle.analysis.id)
+            db.session.add(stop)
+
+    # compute liveness
+    liveness = compute_liveness(gps_data_vehicle, route.parameters.liveness_time_limit)
+
+    vehicle.analysis.total_liveness = liveness['total_liveness']
+    for segment in liveness['segments']:
+        liveness_segment = Liveness(segment['liveness'], segment['time1'], segment['time2'], vehicle.analysis.id)
+        db.session.add(liveness_segment)
+
+    db.session.commit()
