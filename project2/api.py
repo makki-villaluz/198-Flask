@@ -502,6 +502,7 @@ def compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops
 
     loops_record = Loops(loops, vehicle.analysis.id)
     db.session.add(loops_record)
+    vehicle.analysis.cell_size = route.parameters.cell_size
 
     # compute speeding
     speeding_violations = compute_speed_violation(gps_data_vehicle, "Explicit", route.parameters.speeding_speed_limit, route.parameters.speeding_time_limit)
@@ -513,6 +514,8 @@ def compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops
         for violation in speeding_violations:
             speeding = Speeding(violation['duration'], violation['time1'], violation['time2'], violation['lat1'], violation['long1'], violation['lat2'], violation['long2'], vehicle.analysis.id)
             db.session.add(speeding)
+    vehicle.analysis.speeding_time_limit = route.parameters.speeding_time_limit
+    vehicle.analysis.speeding_speed_limit = route.parameters.speeding_speed_limit
 
     # compute stop
     stop_violations = compute_stop_violation(stops, gps_data_vehicle, route.parameters.stop_min_time, route.parameters.stop_max_time)
@@ -524,6 +527,8 @@ def compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops
         for violation in stop_violations:
             stop = Stops(violation['violation'], violation['duration'], violation['time1'], violation['time2'], violation['center_lat'], violation['center_long'], vehicle.analysis.id)
             db.session.add(stop)
+    vehicle.analysis.stop_min_time = route.parameters.stop_min_time
+    vehicle.analysis.stop_max_time = route.parameters.stop_max_time
 
     # compute liveness
     liveness = compute_liveness(gps_data_vehicle, route.parameters.liveness_time_limit)
@@ -532,5 +537,6 @@ def compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops
     for segment in liveness['segments']:
         liveness_segment = Liveness(segment['liveness'], segment['time1'], segment['time2'], vehicle.analysis.id)
         db.session.add(liveness_segment)
+    vehicle.analysis.liveness_time_limit = route.parameters.liveness_time_limit
 
     db.session.commit()
