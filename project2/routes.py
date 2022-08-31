@@ -923,7 +923,7 @@ def route_refresh(curr_user):
         for route in paged_routes.items:
             route_data = {
                 'id': route.id,
-                'name': route.name,
+                'route_name': route.name,
                 'ref_filename': route.ref_filename if route.ref_filename else json.dumps(None),
                 'stop_filename': route.stop_filename if route.stop_filename else json.dumps(None),
                 'date_uploaded': route.date_uploaded.strftime("%b %d, %Y") if route.date_uploaded else json.dumps(None)
@@ -969,7 +969,7 @@ def parameter_refresh(curr_user):
             
             parameter_data = {
                 'id': parameter.id,
-                'name': route.name,
+                'route_name': route.name,
                 'cell_size': parameter.cell_size if parameter.cell_size else json.dumps(None),
                 'stop_min_time': parameter.stop_min_time if parameter.stop_min_time else json.dumps(None),
                 'stop_max_time': parameter.stop_max_time if parameter.stop_max_time else json.dumps(None),
