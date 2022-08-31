@@ -712,8 +712,8 @@ def get_speeding_violations(curr_user, id):
                 'long1': violation.long1,
                 'lat2': violation.lat2,
                 'long2': violation.long2,
-                'time1': violation.time1,
-                'time2': violation.time2,
+                'time1': violation.time1.strftime("%I:%M %p, %m/%d/%Y"),
+                'time2': violation.time2.strftime("%I:%M %p, %m/%d/%Y"),
             }
             data['violations'].append(temp)
 
@@ -739,8 +739,8 @@ def get_stop_violations(curr_user, id):
             temp = {
                 'duration': violation.duration,
                 'violation': violation.violation,
-                'time1': violation.time1,
-                'time2': violation.time2,
+                'time1': violation.time1.strftime("%I:%M %p, %m/%d/%Y"),
+                'time2': violation.time2.strftime("%I:%M %p, %m/%d/%Y"),
                 'center_lat': violation.center_lat,
                 'center_long': violation.center_long,
             }
@@ -768,8 +768,8 @@ def get_liveness(curr_user, id):
         for segment in liveness_segments:
             temp = {
                 'liveness': segment.liveness,
-                'time1': segment.time1,
-                'time2': segment.time2
+                'time1': segment.time1.strftime("%I:%M %p, %m/%d/%Y"),
+                'time2': segment.time2.strftime("%I:%M %p, %m/%d/%Y")
             }
 
             data['segments'].append(temp)
