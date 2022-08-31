@@ -1011,7 +1011,7 @@ def create_account(curr_user):
             account_data = {
                 'id': account.id,
                 'username': account.username,
-                'routes': account.routes.split(',')
+                'routes': account.routes.split(', ')
             }
 
             data.append(account_data)
@@ -1038,7 +1038,7 @@ def get_paged_accounts(curr_user, page_no):
             account_data = {
                 'id': account.id,
                 'username': account.username,
-                'routes': account.routes.split(',')
+                'routes': account.routes.split(', ')
             }
 
             data.append(account_data)
@@ -1072,7 +1072,7 @@ def update_account(curr_user, account_id):
             account_data = {
                 'id': account.id,
                 'username': account.username,
-                'routes': account.routes.split(',')
+                'routes': account.routes.split(', ')
             }
 
             data.append(account_data)
@@ -1098,7 +1098,7 @@ def search_account(curr_user, page_no):
         data = {
             'id': account.id,
             'username': account.username,
-            'routes': account.routes.split(',')
+            'routes': account.routes.split(', ')
         }
 
         return jsonify({
