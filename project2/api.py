@@ -508,7 +508,7 @@ def compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops
     speeding_violations = compute_speed_violation(gps_data_vehicle, "Explicit", route.parameters.speeding_speed_limit, route.parameters.speeding_time_limit)
 
     if not speeding_violations:
-        speeding = Speeding(0, datetime.fromtimestamp(0), datetime.fromtimestamp(0), 0, 0, 0, 0, vehicle.analysis.id)
+        speeding = Speeding(-1, datetime.fromtimestamp(0), datetime.fromtimestamp(0), 0, 0, 0, 0, vehicle.analysis.id)
         db.session.add(speeding)
     else:
         for violation in speeding_violations:
@@ -521,7 +521,7 @@ def compute_vehicle_info(vehicle, route, gps_data_vehicle, gps_data_route, stops
     stop_violations = compute_stop_violation(stops, gps_data_vehicle, route.parameters.stop_min_time, route.parameters.stop_max_time)
 
     if not stop_violations:
-        stop = Stops('no violation', 0, datetime.fromtimestamp(0), datetime.fromtimestamp(0), 0, 0, vehicle.analysis.id)
+        stop = Stops('no violation', -1, datetime.fromtimestamp(0), datetime.fromtimestamp(0), 0, 0, vehicle.analysis.id)
         db.session.add(stop)
     else:
         for violation in stop_violations:
