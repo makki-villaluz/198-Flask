@@ -156,8 +156,10 @@ def create_parameters(curr_user):
 def create_vehicle(curr_user):
     vehicle_name = request.form['vehicle_name']
     route_name = request.form['route_name']
+    date = request.form['date']
     gpx_file = request.files['gpx_file']
     filename = gpx_file.filename
+    date = datetime.strptime(date, "%Y-%m-%d").date()
 
     # check and add route, parameter if it doesn't exist
     route = Route.query.filter_by(name=route_name).first()
@@ -174,7 +176,7 @@ def create_vehicle(curr_user):
     if gpx_file and is_gpx_file(filename):
         res = s3.put_object(Body=gpx_file.read(), Bucket=VEHICLE_BUCKET, Key=filename)
 
-        vehicle = Vehicle(filename, vehicle_name, route.id, route_name)
+        vehicle = Vehicle(filename, vehicle_name, date, route.id, route_name)
         db.session.add(vehicle)
         db.session.commit()
 
