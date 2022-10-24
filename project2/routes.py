@@ -331,11 +331,32 @@ def get_route(curr_user, route_id):
 
     return jsonify({'error': 'route does not exist'}), 400
 
-@app.route('/api/route/paged/<int:page_no>', methods=['GET'])
+@app.route('/api/route/paged/<int:page_no>', methods=['POST'])
 @token_required
 @admin_only
 def get_paged_routes(curr_user, page_no):
-    paged_routes = Route.query.paginate(page=page_no, per_page=PER_PAGE)
+    sort_by = request.get_json()['sortBy']
+    sort_desc = request.get_json()['sortDesc']
+
+    if sort_by == 'route_name':
+        if sort_desc == False:
+            paged_routes = Route.query.order_by(Route.name.asc())
+        else:
+            paged_routes = Route.query.order_by(Route.name.desc())
+    elif sort_by == 'complete_files':
+        if sort_desc == False:
+            paged_routes = Route.query.order_by(Route.ref_filename.asc().nullsfirst())
+        else:
+            paged_routes = Route.query.order_by(Route.ref_filename.desc().nullslast())
+    elif sort_by == 'date_uploaded':
+        if sort_desc == False:
+            paged_routes = Route.query.order_by(Route.date_uploaded.asc())
+        else: 
+            paged_routes = Route.query.order_by(Route.date_uploaded.desc())
+    else:
+        paged_routes = Route.query.order_by(Route.name.asc())
+
+    paged_routes = paged_routes.paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_routes:
         data = []
@@ -385,13 +406,34 @@ def get_vehicle(curr_user, vehicle_id):
 
     return jsonify({'error': 'vehicle does not exist'}), 400
 
-@app.route('/api/vehicle/paged/<int:page_no>', methods=['GET'])
+@app.route('/api/vehicle/paged/<int:page_no>', methods=['POST'])
 @token_required
 def get_paged_vehicles(curr_user, page_no):
-    if curr_user.admin:
-        paged_vehicles = Vehicle.query.paginate(page=page_no, per_page=PER_PAGE)
+    sort_by = request.get_json()['sortBy']
+    sort_desc = request.get_json()['sortDesc']
+
+    if sort_by == 'vehicle_name':
+        if sort_desc == False:
+            paged_vehicles = Vehicle.query.order_by(Vehicle.name.asc())
+        else:
+            paged_vehicles = Vehicle.query.order_by(Vehicle.name.desc())
+    elif sort_by == 'route_name':
+        if sort_desc == False:
+            paged_vehicles = Vehicle.query.order_by(Vehicle.route_name.asc())
+        else:
+            paged_vehicles = Vehicle.query.order_by(Vehicle.route_name.desc())
+    elif sort_by == 'date_uploaded':
+        if sort_desc == False:
+            paged_vehicles = Vehicle.query.order_by(Vehicle.date_uploaded.asc())
+        else:
+            paged_vehicles = Vehicle.query.order_by(Vehicle.date_uploaded.desc())
     else:
-        paged_vehicles = Vehicle.query.filter(Vehicle.route_name.in_(curr_user.routes.split(', '))).paginate(page=page_no, per_page=PER_PAGE)
+        paged_vehicles = Vehicle.query.order_by(Vehicle.date_uploaded.desc())
+
+    if curr_user.admin:
+        paged_vehicles = paged_vehicles.paginate(page=page_no, per_page=PER_PAGE)
+    else:
+        paged_vehicles = paged_vehicles.filter(Vehicle.route_name.in_(curr_user.routes.split(', '))).paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_vehicles:
         data = []
@@ -456,11 +498,27 @@ def get_parameter(curr_user, parameter_id):
 
     return jsonify({'error': 'parameter does not exist'}), 400
 
-@app.route('/api/parameter/paged/<int:page_no>', methods=['GET'])
+@app.route('/api/parameter/paged/<int:page_no>', methods=['POST'])
 @token_required
 @admin_only
 def get_paged_parameters(curr_user, page_no):
-    paged_parameters = Parameters.query.paginate(page=page_no, per_page=PER_PAGE)
+    sort_by = request.get_json()['sortBy']
+    sort_desc = request.get_json()['sortDesc']
+
+    if sort_by == 'route_name':
+        if sort_desc == False:
+            paged_parameters = Parameters.query.order_by(Parameters.name.asc())
+        else:
+            paged_parameters = Parameters.query.order_by(Parameters.name.desc())
+    elif sort_by == 'cell_size':
+        if sort_desc == False:
+            paged_parameters = Parameters.query.order_by(Parameters.cell_size.asc().nullsfirst())
+        else:
+            paged_parameters = Parameters.query.order_by(Parameters.cell_size.desc().nullslast())
+    else:
+        paged_parameters = Parameters.query.order_by(Parameters.name.asc())
+
+    paged_parameters = paged_parameters.paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_parameters:
         data = []
@@ -494,6 +552,8 @@ def search_vehicles(curr_user, page_no):
     vehicle_name = request.get_json()['vehicle_name']
     route_name = request.get_json()['route_name']
     date = request.get_json()['date']
+    sort_by = request.get_json()['sortBy']
+    sort_desc = request.get_json()['sortDesc']
 
     search_vehicles = []
     route = None
@@ -509,6 +569,24 @@ def search_vehicles(curr_user, page_no):
                 'curr_page': 1
             }), 200
 
+    if sort_by == 'vehicle_name':
+        if sort_desc == False:
+            search_vehicles = Vehicle.query.order_by(Vehicle.name.asc())
+        else:
+            search_vehicles = Vehicle.query.order_by(Vehicle.name.desc())
+    elif sort_by == 'route_name':
+        if sort_desc == False:
+            search_vehicles = Vehicle.query.order_by(Vehicle.route_name.asc())
+        else:
+            search_vehicles = Vehicle.query.order_by(Vehicle.route_name.desc())
+    elif sort_by == 'date_uploaded':
+        if sort_desc == False:
+            search_vehicles = Vehicle.query.order_by(Vehicle.date_uploaded.asc())
+        else:
+            search_vehicles = Vehicle.query.order_by(Vehicle.date_uploaded.desc())
+    else:
+        search_vehicles = Vehicle.query.order_by(Vehicle.date_uploaded.desc())
+
     columns = {
         "name": vehicle_name,
         "route_id" : route.id if route else "", 
@@ -516,7 +594,7 @@ def search_vehicles(curr_user, page_no):
     }
 
     filters = {k:v for k,v in columns.items() if v != ""}
-    search_vehicles = Vehicle.query.filter_by(**filters).paginate(page=page_no, per_page=PER_PAGE)
+    search_vehicles = search_vehicles.filter_by(**filters).paginate(page=page_no, per_page=PER_PAGE)
 
     if search_vehicles:
         data = []
@@ -917,7 +995,7 @@ def route_refresh(curr_user):
             db.session.add(new_parameter)
             db.session.commit()
 
-    paged_routes = Route.query.paginate(page=1, per_page=PER_PAGE)
+    paged_routes = Route.query.order_by(Route.name.asc()).paginate(page=1, per_page=PER_PAGE)
 
     if paged_routes:
         data = []
@@ -961,7 +1039,7 @@ def parameter_refresh(curr_user):
             db.session.add(new_parameter)
             db.session.commit()
 
-    paged_parameters = Parameters.query.paginate(page=1, per_page=PER_PAGE)
+    paged_parameters = Parameters.query.order_by(Parameters.name.asc()).paginate(page=1, per_page=PER_PAGE)
 
     if paged_parameters:
         data = []
@@ -1027,11 +1105,22 @@ def create_account(curr_user):
 
     return jsonify({'error': 'user entry creation failed'}), 400
 
-@app.route('/api/admin/account/paged/<int:page_no>', methods=['GET'])
+@app.route('/api/admin/account/paged/<int:page_no>', methods=['POST'])
 @token_required
 @admin_only
 def get_paged_accounts(curr_user, page_no):
-    paged_accounts = User.query.filter_by(admin=False).paginate(page=page_no, per_page=PER_PAGE)
+    sort_by = request.get_json()['sortBy']
+    sort_desc = request.get_json()['sortDesc']
+
+    if sort_by == 'username':
+        if sort_desc == False:
+            paged_accounts = User.query.order_by(User.username.asc())
+        else:
+            paged_accounts = User.query.order_by(User.username.desc())
+    else:
+        paged_accounts = User.query.order_by(User.username.asc())    
+
+    paged_accounts = paged_accounts.filter_by(admin=False).paginate(page=page_no, per_page=PER_PAGE)
 
     if paged_accounts:
         data = []
